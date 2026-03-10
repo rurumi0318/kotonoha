@@ -1,2 +1,7 @@
 fastapi
-uvicorn
+uvicorn[standard]
+firebase-admin
+fugashi
+ipadic
+jamdict
+py-fsrs

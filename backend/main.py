@@ -1,8 +1,19 @@
-import random
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-app = FastAPI()
+from routers import collections, decks, preferences, review, words
+from services.firebase import init_firebase
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    init_firebase()
+    yield
+
+
+app = FastAPI(title="Kotonoha API", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -11,9 +22,12 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-@app.get("/lucky-number")
-def get_number():
-    return {"number": random.randint(1, 1000)}
+app.include_router(collections.router)
+app.include_router(decks.router)
+app.include_router(words.router)
+app.include_router(review.router)
+app.include_router(preferences.router)
+
 
 if __name__ == "__main__":
     import uvicorn
