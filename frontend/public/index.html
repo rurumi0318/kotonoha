@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Hello Test</title>
+</head>
+<body>
+    <h1>Lucky Number<span id="number">Loading...</span></h1>
+
+    <script>
+        const BACKEND_URL = "https://project-kotonoha-320300935118.asia-east1.run.app/lucky-number";
+
+        async function fetchNumber() {
+            try {
+                const response = await fetch(BACKEND_URL);
+                const data = await response.json();
+                document.getElementById('number').innerText = data.number;
+            } catch (error) {
+                document.getElementById('number').innerText = "Loading failed: " + error;
+            }
+        }
+
+        fetchNumber();
+    </script>
+</body>
+</html>
