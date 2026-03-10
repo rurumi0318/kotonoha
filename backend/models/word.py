@@ -5,15 +5,13 @@ from .furigana import FuriganaSegment
 
 
 class FsrsData(BaseModel):
+    card_id: int
     due_date: datetime
     last_review: datetime | None = None
-    stability: float = 0.0
-    difficulty: float = 0.0
-    elapsed_days: int = 0
-    scheduled_days: int = 0
-    reps: int = 0
-    lapses: int = 0
-    state: int = 0  # FSRS State: 0=New, 1=Learning, 2=Review, 3=Relearning
+    stability: float | None = None
+    difficulty: float | None = None
+    step: int | None = None
+    state: int = 1  # FSRS State: 1=Learning, 2=Review, 3=Relearning
 
 
 class Definition(BaseModel):

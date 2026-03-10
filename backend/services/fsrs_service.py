@@ -1,5 +1,5 @@
 """
-Thin wrapper around py-fsrs for scheduling reviews.
+Thin wrapper around fsrs (v6) for scheduling reviews.
 """
 
 from datetime import datetime, timezone
@@ -39,28 +39,24 @@ def process_review(fsrs_data: dict, rating: int) -> dict:
 
 def _dict_to_card(data: dict) -> Card:
     return Card(
+        card_id=data.get("card_id", int(datetime.now(timezone.utc).timestamp() * 1000)),
+        state=State(data.get("state", 1)),
+        step=data.get("step"),
+        stability=data.get("stability"),
+        difficulty=data.get("difficulty"),
         due=_ensure_tz(data.get("due_date", datetime.now(timezone.utc))),
         last_review=_ensure_tz(data["last_review"]) if data.get("last_review") else None,
-        stability=data.get("stability", 0.0),
-        difficulty=data.get("difficulty", 0.0),
-        elapsed_days=data.get("elapsed_days", 0),
-        scheduled_days=data.get("scheduled_days", 0),
-        reps=data.get("reps", 0),
-        lapses=data.get("lapses", 0),
-        state=State(data.get("state", 0)),
     )
 
 
 def _card_to_dict(card: Card) -> dict:
     return {
+        "card_id": card.card_id,
         "due_date": card.due,
         "last_review": card.last_review,
         "stability": card.stability,
         "difficulty": card.difficulty,
-        "elapsed_days": card.elapsed_days,
-        "scheduled_days": card.scheduled_days,
-        "reps": card.reps,
-        "lapses": card.lapses,
+        "step": card.step,
         "state": card.state.value,
     }
 

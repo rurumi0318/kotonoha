@@ -4,4 +4,4 @@ firebase-admin
 fugashi
 ipadic
 jamdict
-py-fsrs
+fsrs

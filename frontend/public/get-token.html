@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Get Firebase Token (Dev Only)</title>
+</head>
+<body>
+  <h3>Get Firebase ID Token for API testing</h3>
+  <button id="btn">Sign in with Google</button>
+  <br><br>
+  <textarea id="token" rows="6" cols="80" placeholder="Token will appear here..."></textarea>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-app.js";
+    import { getAuth, GoogleAuthProvider, signInWithPopup } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-auth.js";
+
+    // Replace with your Firebase config
+    const app = initializeApp({
+      apiKey: "AIzaSyAP5x_NQgVmHD70OJ4iQPk5yhr5Pz6LqGg",
+      authDomain: "project-kotonoha.firebaseapp.com",
+      projectId: "project-kotonoha",
+    });
+
+    const auth = getAuth(app);
+
+    document.getElementById("btn").onclick = async () => {
+      const result = await signInWithPopup(auth, new GoogleAuthProvider());
+      const token = await result.user.getIdToken();
+      document.getElementById("token").value = token;
+    };
+  </script>
+</body>
+</html>
