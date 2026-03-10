@@ -1,39 +1,79 @@
-# Environment Overview
+# Infrastructure Overview
 
-## Infrastructure Architecture
+## Cloud Architecture
 
-### Cloud Services (Google Cloud Platform)
-- Frontend Hosting: Firebase Hosting (Global CDN for static assets).
-- Backend Server: Google Cloud Run (Serverless container platform).
-- Database: Google Cloud Firestore (NoSQL document database).
-- Authentication: Firebase Authentication (Google Login integration).
-- Container Registry: Artifact Registry (Stores Docker images for backend).
+| Service | Provider | Purpose |
+|---|---|---|
+| Frontend Hosting | Firebase Hosting | Global CDN for static assets |
+| Backend API | Google Cloud Run | Serverless container, auto-scales to zero |
+| Database | Google Cloud Firestore | NoSQL document database |
+| Authentication | Firebase Authentication | Google Login (OAuth 2.0) |
+| Container Registry | Artifact Registry | Stores Docker images for the backend |
 
-### Tech Stack
-- Backend: Python 3.11+ with FastAPI.
-- Frontend: Standard HTML/CSS/JavaScript (Extensible to frameworks like Vue/React).
-- API Protocol: RESTful API with JSON.
-- DevOps: Docker for backend containerization.
+## Tech Stack
 
-## Directory Structure & Responsibilities
+- **Backend:** Python 3.11+, FastAPI, Docker
+- **Frontend:** HTML / CSS / JavaScript
+- **API Protocol:** RESTful JSON
+- **Auth:** Firebase JWT — verified on every backend request
 
-`/frontend`
-- Purpose: Handles UI/UX, user interaction, and client-side logic.
-- Key Files:
-  - public/index.html: Main entry point.
-  - firebase.json: Hosting configurations and rewrite rules.
-- Deployment: firebase deploy --only hosting
+## Directory Structure
 
-`/backend`
-- Purpose: Handles dictionary lookup (Jamdict), database operations, and business logic.
-- Key Files:
-  - main.py: API endpoints and application logic.
-  - Dockerfile: Instructions for containerizing the Python environment.
-  - requirements.txt: Python dependencies (FastAPI, Uvicorn, Jamdict).
-- Deployment: gcloud run deploy project-kotonoha --source .
+```
+/
+├── firebase.json              # Firebase project config (hosting + firestore)
+├── firestore.indexes.json     # Composite Firestore indexes
+├── firestore.rules            # Firestore security rules
+├── frontend/
+│   └── public/                # Static files deployed to Firebase Hosting
+│       └── index.html
+└── backend/                   # FastAPI app deployed to Cloud Run
+    ├── main.py
+    ├── Dockerfile
+    ├── requirements.txt
+    ├── models/
+    ├── routers/
+    └── services/
+```
 
-## Development Workflow
+See [backend/README.md](./backend/README.md) for backend design details.
 
-1. Local Testing: Run FastAPI locally using uvicorn main:app --reload and open index.html via a local server (e.g., VS Code Live Server).
-2. Backend Update: Deploy changes to Cloud Run if API logic or dictionary data changes.
-3. Frontend Update: Update the API endpoint URL if necessary, then deploy to Firebase Hosting.
+## Deployment
+
+### Firestore indexes
+```bash
+# Run from project root
+firebase deploy --only firestore:indexes
+```
+
+### Backend (Cloud Run)
+```bash
+cd backend
+gcloud run deploy project-kotonoha --source . --region asia-east1 --allow-unauthenticated
+```
+
+### Frontend (Firebase Hosting)
+```bash
+# Run from project root
+firebase deploy --only hosting
+```
+
+## Local Development
+
+### Backend
+```bash
+cd backend
+python -m venv .venv
+.venv\Scripts\activate          # Windows
+pip install -r requirements.txt
+
+set GOOGLE_APPLICATION_CREDENTIALS=../service-account.json
+uvicorn main:app --reload --port 8080
+```
+
+API docs available at `http://localhost:8080/docs`.
+
+To get a Firebase ID token for local API testing, open `frontend/public/get-token.html` via a local server (`python -m http.server 3000` inside `frontend/public`), then visit `http://localhost:3000/get-token.html`.
+
+### Frontend
+Open `frontend/public/index.html` via a local server (e.g. VS Code Live Server or `python -m http.server`).
