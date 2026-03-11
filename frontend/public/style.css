@@ -845,7 +845,21 @@ ruby rt {
 
 /* ── Responsive ────────────────────────────────────────────────── */
 @media (min-width: 600px) {
+  html, body { font-size: 16px; }
   .app-main { padding: 24px 24px 48px; }
   .card-list { gap: 12px; }
   .word-surface-lg { font-size: 3.5rem; }
+  .badge { font-size: 0.75rem; }
+  .card-count { font-size: 0.82rem; }
+}
+
+@media (min-width: 1024px) {
+  html, body { font-size: 17px; }
+  .app-header { padding: 0 24px; }
+  .app-main { padding: 32px 32px 64px; }
+  .word-surface-lg { font-size: 4rem; }
+  .badge { font-size: 0.78rem; }
+  .word-section-title { font-size: 0.78rem; }
+  .fsrs-cell-label { font-size: 0.75rem; }
+  .card-count { font-size: 0.82rem; }
 }
