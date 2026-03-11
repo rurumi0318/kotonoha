@@ -1,4 +1,4 @@
-import { onAuthChange } from './auth.js';
+import { onAuthChange, handleRedirectResult } from './auth.js';
 import { state } from './state.js';
 import { navigate } from './utils.js';
 
@@ -46,7 +46,12 @@ async function route() {
 
 window.addEventListener('hashchange', route);
 
-onAuthChange((user) => {
-  state.user = user;
-  route();
+// Process any pending redirect sign-in before listening for auth state.
+// Without this, onAuthStateChanged fires with null before the redirect
+// result is consumed, sending the user back to the login page.
+handleRedirectResult().finally(() => {
+  onAuthChange((user) => {
+    state.user = user;
+    route();
+  });
 });
