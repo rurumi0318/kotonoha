@@ -43,3 +43,6 @@ export const api = {
   put:    (path, body)  => request('PUT',    path, body),
   delete: (path)        => request('DELETE', path),
 };
+
+export const getPreferences    = ()     => request('GET', '/preferences');
+export const updatePreferences = (data) => request('PUT', '/preferences', data);

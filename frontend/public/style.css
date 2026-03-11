@@ -914,6 +914,109 @@ ruby rt {
   font-weight: 500;
 }
 
+/* ── Language toggle (Settings) ────────────────────────────────── */
+.lang-toggle {
+  display: flex;
+  gap: 10px;
+}
+
+.lang-toggle-btn {
+  flex: 1;
+  padding: 10px 0;
+  border: 2px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text-muted);
+  font-size: 0.95rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s;
+}
+
+.lang-toggle-btn:hover  { border-color: var(--accent); color: var(--text); }
+.lang-toggle-btn.active { border-color: var(--accent); color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+
+/* ── Onboarding ─────────────────────────────────────────────────── */
+.onboarding-layout {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.onboarding-card {
+  width: 100%;
+  max-width: 520px;
+  text-align: center;
+}
+
+.onboarding-brand {
+  font-size: 2.2rem;
+  font-weight: 700;
+  color: var(--accent);
+  margin-bottom: 12px;
+  letter-spacing: 0.02em;
+}
+
+.onboarding-title {
+  font-size: 1.6rem;
+  font-weight: 700;
+  margin: 0 0 28px;
+}
+
+.onboarding-section-label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+  text-align: left;
+  margin-bottom: 10px;
+}
+
+.onboarding-options {
+  display: flex;
+  gap: 12px;
+}
+
+.lang-option {
+  flex: 1;
+  padding: 20px 12px;
+  border: 2px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 1.5rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color 0.15s, box-shadow 0.15s, color 0.15s;
+}
+
+.lang-option:hover {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+
+.lang-option.active {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
+  color: var(--accent);
+}
+
+.onboarding-confirm {
+  margin-top: 32px;
+  width: 100%;
+  padding: 14px;
+  font-size: 1rem;
+}
+
+.onboarding-confirm:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+
 /* ── Responsive ────────────────────────────────────────────────── */
 @media (min-width: 600px) {
   html, body { font-size: 18px; }

@@ -1,5 +1,7 @@
 import { navigate, showToast } from '../utils.js';
 import { signOut } from '../auth.js';
+import { state } from '../state.js';
+import { getPreferences, updatePreferences } from '../api.js';
 
 const THEMES = [
   { id: 'midnight', name: 'Midnight', bg: '#0f1117', surface: '#1a1d27', accent: '#6c6fff', text: '#eef0ff' },
@@ -18,6 +20,8 @@ function applyTheme(id) {
 }
 
 export default async function renderSettings(app) {
+  const prefs = state.preferences ?? await getPreferences().then(p => { state.preferences = p; return p; });
+  const currentLang = prefs.main_language || '';
   const current = localStorage.getItem('theme') || 'midnight';
 
   const themeCards = THEMES.map(t => `
@@ -41,6 +45,13 @@ export default async function renderSettings(app) {
       </header>
       <main class="app-main">
         <div class="word-section">
+          <div class="word-section-title">Dictionary Language</div>
+          <div class="lang-toggle">
+            <button class="lang-toggle-btn ${currentLang === 'EN' ? 'active' : ''}" data-lang="EN">English</button>
+            <button class="lang-toggle-btn ${currentLang === 'ZH-TW' ? 'active' : ''}" data-lang="ZH-TW">繁體中文</button>
+          </div>
+        </div>
+        <div class="word-section" style="margin-top: 24px">
           <div class="word-section-title">Color Theme</div>
           <div class="theme-grid">${themeCards}</div>
         </div>
@@ -61,6 +72,22 @@ export default async function renderSettings(app) {
       showToast('Failed to sign out', 'error');
     }
   };
+
+  document.querySelectorAll('.lang-toggle-btn').forEach(btn => {
+    btn.onclick = async () => {
+      const lang = btn.dataset.lang;
+      if (lang === (state.preferences?.main_language)) return;
+      try {
+        const updated = await updatePreferences({ main_language: lang });
+        state.preferences = updated;
+        document.querySelectorAll('.lang-toggle-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        showToast('Language updated');
+      } catch {
+        showToast('Failed to update language', 'error');
+      }
+    };
+  });
 
   document.querySelectorAll('.theme-card').forEach(card => {
     card.onclick = () => {
