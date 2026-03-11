@@ -2,7 +2,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.14.1/fireba
 import {
   getAuth,
   GoogleAuthProvider,
-  signInWithPopup,
+  signInWithRedirect,
   onAuthStateChanged,
   signOut as _signOut,
 } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js';
@@ -23,7 +23,7 @@ export async function getToken() {
 }
 
 export async function signInWithGoogle() {
-  await signInWithPopup(auth, provider);
+  await signInWithRedirect(auth, provider);
 }
 
 export async function signOut() {

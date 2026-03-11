@@ -3,7 +3,7 @@ import { getToken } from './auth.js';
 const isLocal = ['localhost', '127.0.0.1'].includes(window.location.hostname);
 export const BASE_URL = isLocal
   ? 'http://localhost:8080'
-  : 'https://project-kotonoha-320300935118.asia-east1.run.app';
+  : 'https://kotonoha-backend-320300935118.asia-east1.run.app';
 
 async function request(method, path, body) {
   const token = await getToken();
