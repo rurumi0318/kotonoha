@@ -843,9 +843,80 @@ ruby rt {
 .placeholder-page .icon { font-size: 3rem; }
 .placeholder-page h2 { font-size: 1.1rem; color: var(--text-1); }
 
+/* ── Themes ─────────────────────────────────────────────────────── */
+[data-theme="amber"] {
+  --bg:         #110f0a;
+  --surface:    #1e1912;
+  --surface-el: #2a2318;
+  --border:     #3d3020;
+  --text-1:     #fdf4e7;
+  --text-2:     #a89070;
+  --accent:     #e8924a;
+  --accent-h:   #f0a870;
+}
+
+[data-theme="forest"] {
+  --bg:         #0a110d;
+  --surface:    #131e16;
+  --surface-el: #1b2a1f;
+  --border:     #253828;
+  --text-1:     #e8f5ec;
+  --text-2:     #7da888;
+  --accent:     #4ade80;
+  --accent-h:   #6ee89a;
+}
+
+[data-theme="mist"] {
+  --bg:         #f0f2f8;
+  --surface:    #ffffff;
+  --surface-el: #e4e8f5;
+  --border:     #c8cfe8;
+  --text-1:     #1a1d30;
+  --text-2:     #6b7099;
+  --accent:     #5c5fef;
+  --accent-h:   #7b7ef5;
+  --success:    #059669;
+  --warning:    #d97706;
+  --danger:     #dc2626;
+}
+
+/* ── Theme cards (Settings) ─────────────────────────────────────── */
+.theme-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: 12px;
+}
+
+.theme-card {
+  border: 2px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  cursor: pointer;
+  transition: border-color 0.15s;
+  text-align: left;
+  width: 100%;
+}
+
+.theme-card:hover  { border-color: var(--accent); }
+.theme-card.active { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+
+.theme-preview {
+  height: 64px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 12px;
+}
+
+.theme-name {
+  padding: 8px 12px 10px;
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
 /* ── Responsive ────────────────────────────────────────────────── */
 @media (min-width: 600px) {
-  html, body { font-size: 16px; }
+  html, body { font-size: 18px; }
   .app-main { padding: 24px 24px 48px; }
   .card-list { gap: 12px; }
   .word-surface-lg { font-size: 3.5rem; }
@@ -854,9 +925,10 @@ ruby rt {
 }
 
 @media (min-width: 1024px) {
-  html, body { font-size: 17px; }
-  .app-header { padding: 0 24px; }
-  .app-main { padding: 32px 32px 64px; }
+  :root { --header-h: 64px; }
+  html, body { font-size: 20px; }
+  .app-header { padding: 0 28px; }
+  .app-main { padding: 36px 40px 72px; }
   .word-surface-lg { font-size: 4rem; }
   .badge { font-size: 0.78rem; }
   .word-section-title { font-size: 0.78rem; }
