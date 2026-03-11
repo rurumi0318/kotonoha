@@ -49,7 +49,7 @@ firebase deploy --only firestore:indexes
 ### Backend (Cloud Run)
 ```bash
 cd backend
-gcloud run deploy project-kotonoha --source . --region asia-east1 --allow-unauthenticated
+gcloud run deploy kotonoha-backend --source . --region asia-east1 --allow-unauthenticated
 ```
 
 ### Frontend (Firebase Hosting)
