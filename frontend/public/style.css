@@ -927,6 +927,11 @@ ruby rt {
 @media (min-width: 1024px) {
   :root { --header-h: 64px; }
   html, body { font-size: 20px; }
+  #app {
+    max-width: 900px;
+    margin: 0 auto;
+    border-inline: 1px solid var(--border);
+  }
   .app-header { padding: 0 28px; }
   .app-main { padding: 36px 40px 72px; }
   .word-surface-lg { font-size: 4rem; }
