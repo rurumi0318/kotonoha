@@ -1,7 +1,9 @@
+wheel
 fastapi
 uvicorn[standard]
 firebase-admin
 fugashi
 ipadic
 jamdict
+jamdict-data
 fsrs
