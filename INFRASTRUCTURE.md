@@ -73,7 +73,9 @@ uvicorn main:app --reload --port 8080
 
 API docs available at `http://localhost:8080/docs`.
 
-To get a Firebase ID token for local API testing, open `frontend/public/get-token.html` via a local server (`python -m http.server 3000` inside `frontend/public`), then visit `http://localhost:3000/get-token.html`.
+To get a Firebase ID token for local API testing:
+1. Copy `frontend/public/firebase-config.example.js` → `frontend/public/firebase-config.js` and fill in the actual Firebase project values (this file is gitignored).
+2. Open `frontend/public/get-token.html` via a local server (`python -m http.server 3000` inside `frontend/public`), then visit `http://localhost:3000/get-token.html`.
 
 ### Frontend
 Open `frontend/public/index.html` via a local server (e.g. VS Code Live Server or `python -m http.server`).

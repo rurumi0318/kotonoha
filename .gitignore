@@ -29,6 +29,10 @@ Thumbs.db
 .env.development.local
 .env.test.local
 .env.production.local
+frontend/public/firebase-config.js
 
 # Cloud Run / Docker (Local artifacts)
 .dockerignore
+
+# Claude Code
+.claude/
