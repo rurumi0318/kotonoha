@@ -3,6 +3,7 @@ import {
   getAuth,
   GoogleAuthProvider,
   signInWithRedirect,
+  signInWithPopup,
   getRedirectResult,
   onAuthStateChanged,
   signOut as _signOut,
@@ -13,7 +14,10 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const provider = new GoogleAuthProvider();
 
+const isLocalhost = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
+
 export async function handleRedirectResult() {
+  if (isLocalhost) return;
   await getRedirectResult(auth);
 }
 
@@ -28,7 +32,11 @@ export async function getToken() {
 }
 
 export async function signInWithGoogle() {
-  await signInWithRedirect(auth, provider);
+  if (isLocalhost) {
+    await signInWithPopup(auth, provider);
+  } else {
+    await signInWithRedirect(auth, provider);
+  }
 }
 
 export async function signOut() {
