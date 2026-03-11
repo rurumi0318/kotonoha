@@ -13,18 +13,21 @@ import re
 import fugashi
 import ipadic
 
-_tagger: fugashi.Tagger | None = None
+_tagger: fugashi.GenericTagger | None = None
 _DEVNULL = "NUL" if os.name == "nt" else "/dev/null"
 
 # Matches any CJK unified ideograph (kanji)
 _KANJI_RE = re.compile(r"[\u4e00-\u9fff\u3400-\u4dbf\uf900-\ufaff]")
 
 
-def _get_tagger() -> fugashi.Tagger:
+def _get_tagger() -> fugashi.GenericTagger:
     global _tagger
     if _tagger is None:
-        # Use ipadic dictionary; skip system mecabrc with -r /dev/null
-        _tagger = fugashi.Tagger(f"-d {ipadic.DICDIR} -r {_DEVNULL}")
+        # Use forward slashes: MeCab's C++ arg parser treats backslashes as
+        # escape characters and strips them on Windows.
+        dicdir = ipadic.DICDIR.replace("\\", "/")
+        devnull = _DEVNULL.replace("\\", "/")
+        _tagger = fugashi.GenericTagger(f"-d {dicdir} -r {devnull}")
     return _tagger
 
 

@@ -54,6 +54,16 @@ async def list_collections(uid: str = Depends(get_current_user)):
     return result
 
 
+def _check_name_unique(user_ref, name: str, exclude_id: str | None = None) -> None:
+    """Raise 409 if any existing collection has the same name (case-insensitive)."""
+    name_lower = name.strip().lower()
+    for doc in user_ref.collection("collections").stream():
+        if exclude_id and doc.id == exclude_id:
+            continue
+        if doc.to_dict().get("name", "").strip().lower() == name_lower:
+            raise HTTPException(status_code=409, detail="A collection with that name already exists.")
+
+
 @router.post("", status_code=201)
 async def create_collection(
     body: CollectionCreateRequest,
@@ -61,9 +71,12 @@ async def create_collection(
 ):
     db = get_db()
     user_ref = db.collection("users").document(uid)
+
+    _check_name_unique(user_ref, body.name)
+
     col_ref = user_ref.collection("collections").document()
 
-    data = {"name": body.name, "deck_order": []}
+    data = {"name": body.name, "desc": body.desc, "deck_order": []}
     col_ref.set(data)
 
     # Append new ID to order list; create user doc if it doesn't exist yet
@@ -79,15 +92,16 @@ async def update_collection(
     uid: str = Depends(get_current_user),
 ):
     db = get_db()
-    col_ref = (
-        db.collection("users").document(uid).collection("collections").document(collection_id)
-    )
+    user_ref = db.collection("users").document(uid)
+    col_ref = user_ref.collection("collections").document(collection_id)
 
     if not col_ref.get().exists:
         raise HTTPException(status_code=404, detail="Collection not found")
 
-    col_ref.update({"name": body.name})
-    return {"id": collection_id, "name": body.name}
+    _check_name_unique(user_ref, body.name, exclude_id=collection_id)
+
+    col_ref.update({"name": body.name, "desc": body.desc})
+    return {"id": collection_id, "name": body.name, "desc": body.desc}
 
 
 @router.delete("/{collection_id}", status_code=204)

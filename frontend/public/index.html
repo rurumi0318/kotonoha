@@ -1,25 +1,22 @@
 <!DOCTYPE html>
-<html>
+<html lang="ja">
 <head>
-    <title>Hello Test</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>言の葉</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./style.css">
 </head>
 <body>
-    <h1>Lucky Number<span id="number">Loading...</span></h1>
-
-    <script>
-        const BACKEND_URL = "https://project-kotonoha-320300935118.asia-east1.run.app/lucky-number";
-
-        async function fetchNumber() {
-            try {
-                const response = await fetch(BACKEND_URL);
-                const data = await response.json();
-                document.getElementById('number').innerText = data.number;
-            } catch (error) {
-                document.getElementById('number').innerText = "Loading failed: " + error;
-            }
-        }
-
-        fetchNumber();
-    </script>
+  <div id="app">
+    <div class="splash">
+      <div class="spinner"></div>
+    </div>
+  </div>
+  <div id="modal-overlay" class="modal-overlay hidden"></div>
+  <div id="toast-container" class="toast-container"></div>
+  <script type="module" src="./app.js"></script>
 </body>
 </html>
