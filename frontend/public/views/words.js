@@ -18,7 +18,7 @@ export default async function renderWords(app, cid, did) {
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
           Decks
         </button>
-        <div class="header-title" id="deck-title"></div>
+        <div class="header-title word-header-breadcrumb" id="deck-title"></div>
         <button class="btn-icon" id="furigana-btn" title="Toggle furigana">
           <span class="furigana-btn-icon">ふ</span>
         </button>
@@ -29,7 +29,6 @@ export default async function renderWords(app, cid, did) {
         </button>
       </header>
       <main class="app-main">
-        <div class="breadcrumb" id="breadcrumb"></div>
         <div class="page-header">
           <div>
             <h1 class="page-title">Words</h1>
@@ -69,12 +68,8 @@ export default async function renderWords(app, cid, did) {
     const deck = decks.find(d => d.id === did);
     const deckName = deck?.name || '';
     state.deckName = deckName;
-    document.getElementById('deck-title').textContent = deckName;
-
     const colName = state.collectionName || '';
-    if (colName) {
-      document.getElementById('breadcrumb').textContent = `${colName} › ${deckName}`;
-    }
+    document.getElementById('deck-title').textContent = colName ? `${colName} › ${deckName}` : deckName;
 
     words = fetchedWords;
     renderList(words);
