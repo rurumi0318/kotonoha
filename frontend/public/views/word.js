@@ -11,40 +11,65 @@ import { openWordModal } from './wordModal.js';
 export default async function renderWord(app, cid, did, wid) {
   if (!cid || !did || !wid) { navigate('#/collections'); return; }
 
-  app.innerHTML = `
-    <div class="view-layout">
-      <header class="app-header">
-        <button class="btn-back" id="back-btn">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
-          Words
-        </button>
-        <div class="word-header-nav" id="word-header-title"></div>
-        <button class="btn-icon" id="furigana-btn" title="Toggle furigana">
-          <span class="furigana-btn-icon">ふ</span>
-        </button>
-        <button class="btn-icon" id="edit-btn" title="Edit word">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
-            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
-          </svg>
-        </button>
-      </header>
-      <main class="app-main">
-        <div id="word-content">
-          <div class="loading-state"><div class="spinner"></div></div>
-        </div>
-      </main>
-    </div>
-  `;
+  const cacheKey = `${cid}/${did}`;
 
-  document.getElementById('back-btn').onclick = () => navigate(`#/words/${cid}/${did}`);
-  document.getElementById('furigana-btn').onclick = () => setFuriganaEnabled(!getFuriganaEnabled());
+  // ── Same-deck partial update (skip full DOM replacement) ───────────
+  const existingLayout = app.querySelector('.view-layout[data-word-cid]');
+  const isSameDeck = existingLayout?.dataset.wordCid === cid && existingLayout?.dataset.wordDid === did;
+
+  if (!isSameDeck) {
+    app.innerHTML = `
+      <div class="view-layout" data-word-cid="${cid}" data-word-did="${did}">
+        <header class="app-header">
+          <button class="btn-back" id="back-btn">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
+            Words
+          </button>
+          <div class="word-header-nav" id="word-header-title"></div>
+          <button class="btn-icon" id="furigana-btn" title="Toggle furigana">
+            <span class="furigana-btn-icon">ふ</span>
+          </button>
+          <button class="btn-icon" id="edit-btn" title="Edit word">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+            </svg>
+          </button>
+        </header>
+        <main class="app-main">
+          <div id="word-content">
+            <div class="loading-state"><div class="spinner"></div></div>
+          </div>
+        </main>
+      </div>
+    `;
+
+    document.getElementById('back-btn').onclick = () => navigate(`#/words/${cid}/${did}`);
+    document.getElementById('furigana-btn').onclick = () => setFuriganaEnabled(!getFuriganaEnabled());
+
+    // ── Swipe navigation (mobile) — set up once per deck view ─────────
+    const contentEl = document.getElementById('word-content');
+    let swipeStartX = 0;
+    contentEl.addEventListener('touchstart', (e) => { swipeStartX = e.touches[0].clientX; }, { passive: true });
+    contentEl.addEventListener('touchend', (e) => {
+      const delta = e.changedTouches[0].clientX - swipeStartX;
+      if (Math.abs(delta) < 50) return;
+      const currentWid = contentEl.dataset.currentWid;
+      const list = state.wordsCache[cacheKey] || [];
+      const idx = list.findIndex(w => w.id === currentWid);
+      if (delta > 0 && idx > 0)              navigate(`#/word/${cid}/${did}/${list[idx - 1].id}`);
+      if (delta < 0 && idx < list.length - 1) navigate(`#/word/${cid}/${did}/${list[idx + 1].id}`);
+    });
+  }
 
   let word = null;
-  let wordsList = [];
+  let wordsList = state.wordsCache[cacheKey] ?? null;
 
   try {
-    wordsList = await api.get(`/collections/${cid}/decks/${did}/words`);
+    if (wordsList === null) {
+      wordsList = await api.get(`/collections/${cid}/decks/${did}/words`);
+      state.wordsCache[cacheKey] = wordsList;
+    }
     word = wordsList.find(w => w.id === wid);
     if (!word) throw new Error('Word not found');
     renderWordDetail(word);
@@ -68,20 +93,8 @@ export default async function renderWord(app, cid, did, wid) {
   document.addEventListener('keydown', handleKey);
   window.addEventListener('hashchange', () => document.removeEventListener('keydown', handleKey), { once: true });
 
-  // ── Swipe navigation (mobile) ──────────────────────────────────────
-  function addSwipeNav(el) {
-    let startX = 0;
-    el.addEventListener('touchstart', (e) => { startX = e.touches[0].clientX; }, { passive: true });
-    el.addEventListener('touchend', (e) => {
-      const delta = e.changedTouches[0].clientX - startX;
-      if (Math.abs(delta) < 50) return;
-      const idx = wordsList.findIndex(w => w.id === wid);
-      if (delta > 0 && idx > 0)                    navigate(`#/word/${cid}/${did}/${wordsList[idx - 1].id}`);
-      if (delta < 0 && idx < wordsList.length - 1) navigate(`#/word/${cid}/${did}/${wordsList[idx + 1].id}`);
-    });
-  }
-
   function renderWordDetail(w) {
+    app.querySelector('.app-main').scrollTop = 0;
     const idx      = wordsList.findIndex(ww => ww.id === w.id);
     const hasPrev  = idx > 0;
     const hasNext  = idx < wordsList.length - 1;
@@ -174,12 +187,12 @@ export default async function renderWord(app, cid, did, wid) {
       </div>
     `;
 
+    // Mark current word for swipe handler
+    document.getElementById('word-content').dataset.currentWid = w.id;
+
     // Prev / Next buttons
     if (hasPrev) document.getElementById('word-nav-prev').onclick = () => navigate(`#/word/${cid}/${did}/${wordsList[idx - 1].id}`);
     if (hasNext) document.getElementById('word-nav-next').onclick = () => navigate(`#/word/${cid}/${did}/${wordsList[idx + 1].id}`);
-
-    // Swipe on the content area
-    addSwipeNav(document.getElementById('word-content'));
 
     // Pause toggle
     const toggle = document.getElementById('pause-toggle');
@@ -209,11 +222,16 @@ export default async function renderWord(app, cid, did, wid) {
       cid,
       did,
       onSaved: async () => {
+        delete state.wordsCache[cacheKey];
         wordsList = await api.get(`/collections/${cid}/decks/${did}/words`);
+        state.wordsCache[cacheKey] = wordsList;
         word = wordsList.find(fw => fw.id === wid);
         if (word) renderWordDetail(word);
       },
-      onDeleted: () => navigate(`#/words/${cid}/${did}`),
+      onDeleted: () => {
+        delete state.wordsCache[cacheKey];
+        navigate(`#/words/${cid}/${did}`);
+      },
     });
   }
 }

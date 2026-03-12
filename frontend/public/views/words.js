@@ -51,7 +51,9 @@ export default async function renderWords(app, cid, did) {
     cid,
     did,
     onSaved: async () => {
+      delete state.wordsCache[`${cid}/${did}`];
       const fresh = await api.get(`/collections/${cid}/decks/${did}/words`);
+      state.wordsCache[`${cid}/${did}`] = fresh;
       words = fresh;
       renderList(fresh);
     },
@@ -181,9 +183,11 @@ export default async function renderWords(app, cid, did) {
       btn.innerHTML = '<span class="spinner-sm"></span>';
       try {
         await api.delete(`/collections/${cid}/decks/${did}/words/${word.id}`);
+        delete state.wordsCache[`${cid}/${did}`];
         closeModal();
         showToast('Word deleted', 'success');
         words = words.filter(w => w.id !== word.id);
+        state.wordsCache[`${cid}/${did}`] = words;
         renderList(words);
       } catch {
         showToast('Failed to delete', 'error');
