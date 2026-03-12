@@ -642,7 +642,9 @@ ruby rt {
   padding: 16px 20px;
   overflow-y: auto;
   flex: 1;
+  scrollbar-width: none;
 }
+.modal-body::-webkit-scrollbar { display: none; }
 
 .modal-footer {
   padding: 14px 20px;
@@ -1169,6 +1171,33 @@ ruby rt {
   cursor: not-allowed;
 }
 
+
+/* ── Word detail header nav ────────────────────────────────────── */
+.word-header-nav {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  flex: 1;
+}
+.word-header-breadcrumb {
+  font-size: 0.78rem;
+  color: var(--text-2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+}
+.word-header-nav-controls {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+}
+.word-header-nav-controls .word-nav-count {
+  font-size: 0.75rem;
+  min-width: 36px;
+}
 
 /* ── Furigana toggle ───────────────────────────────────────────── */
 body.furigana-off ruby rt { display: none; }

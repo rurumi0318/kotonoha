@@ -18,7 +18,7 @@ export default async function renderWord(app, cid, did, wid) {
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
           Words
         </button>
-        <div class="header-title" id="word-header-title"></div>
+        <div class="word-header-nav" id="word-header-title"></div>
         <button class="btn-icon" id="furigana-btn" title="Toggle furigana">
           <span class="furigana-btn-icon">ふ</span>
         </button>
@@ -82,9 +82,6 @@ export default async function renderWord(app, cid, did, wid) {
   }
 
   function renderWordDetail(w) {
-    const surface = renderFuriganaText(w.word);
-    document.getElementById('word-header-title').textContent = surface;
-
     const idx      = wordsList.findIndex(ww => ww.id === w.id);
     const hasPrev  = idx > 0;
     const hasNext  = idx < wordsList.length - 1;
@@ -93,21 +90,23 @@ export default async function renderWord(app, cid, did, wid) {
     const deckName = state.deckName || '';
     const breadcrumb = [colName, deckName].filter(Boolean).join(' › ');
 
+    // Populate fixed header: breadcrumb text + nav controls
+    document.getElementById('word-header-title').innerHTML = `
+      <span class="word-header-breadcrumb">${escapeHtml(breadcrumb || renderFuriganaText(w.word))}</span>
+      ${wordsList.length > 1 ? `
+        <div class="word-header-nav-controls">
+          <button class="btn-icon word-nav-btn" id="word-nav-prev" ${hasPrev ? '' : 'disabled'} title="Previous word (←)">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
+          </button>
+          <span class="word-nav-count">${idx + 1} / ${wordsList.length}</span>
+          <button class="btn-icon word-nav-btn" id="word-nav-next" ${hasNext ? '' : 'disabled'} title="Next word (→)">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+          </button>
+        </div>` : ''}
+    `;
+
     document.getElementById('word-content').innerHTML = `
       <div class="word-detail">
-        ${breadcrumb ? `<div class="breadcrumb">${escapeHtml(breadcrumb)}</div>` : ''}
-
-        ${wordsList.length > 1 ? `
-          <div class="word-nav-bar">
-            <button class="btn-icon word-nav-btn" id="word-nav-prev" ${hasPrev ? '' : 'disabled'} title="Previous word (←)">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
-            </button>
-            <span class="word-nav-count">${idx + 1} / ${wordsList.length}</span>
-            <button class="btn-icon word-nav-btn" id="word-nav-next" ${hasNext ? '' : 'disabled'} title="Next word (→)">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
-            </button>
-          </div>` : ''}
-
         <div class="word-surface-lg" lang="ja">${renderFurigana(w.word)}</div>
         ${w.kana_hint ? `<div class="word-kana-hint-lg" lang="ja">${escapeHtml(w.kana_hint)}</div>` : ''}
 
