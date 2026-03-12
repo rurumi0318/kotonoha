@@ -28,7 +28,8 @@ backend/
 │   ├── furigana.py       # Raw Japanese text → FuriganaSegment (MeCab)
 │   ├── fsrs_service.py   # FSRS scheduling wrapper (fsrs v6)
 │   ├── example_service.py  # SQLite example sentence lookup
-│   └── vocab_service.py    # jamdict + example attachment
+│   ├── vocab_service.py    # jamdict + example attachment + async translation
+│   └── translator.py       # Placeholder TranslatorService (translate_batch)
 ├── data/
 │   └── examples.db       # Generated SQLite database (gitignored — see below)
 └── tools/
@@ -89,6 +90,7 @@ Japanese text is stored with reading annotations (furigana) to support display o
         collection_id: string   # denormalized for duplicate reporting
         deck_id:       string   # denormalized for duplicate reporting
         word:          FuriganaSegment
+        kana_hint:     string   # reading disambiguation (e.g. "にんき" vs "ひとけ")
         definitions: [
           {
             english_definition: string
@@ -118,7 +120,7 @@ Each parent document stores a `*_order` array of child IDs. This array is the so
 
 ### Duplicate Detection
 
-When creating a word, the backend queries all of the user's words for the same `word.surface` using a Firestore **collection group query**. If duplicates are found, the response includes their collection and deck names so the client can warn the user. The word is still created regardless.
+When creating a word, the backend queries all of the user's words for the same `word.surface` using a Firestore **collection group query**, then filters in Python by `kana_hint`. Two words are considered duplicates only when both `word.surface` **and** `kana_hint` match — allowing homographs with different readings (e.g. `人気(にんき)` and `人気(ひとけ)`) to coexist without a warning. If duplicates are found, the response includes their collection and deck names so the client can warn the user. The word is still created regardless.
 
 Requires a composite Firestore index: `(user_id ASC, word.surface ASC)`.
 
