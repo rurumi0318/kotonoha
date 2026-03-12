@@ -169,19 +169,17 @@ Both files are gitignored. When building the Docker image, `COPY . .` in the Doc
 
 ### Tiered lookup
 
-`get_examples(ent_seq, headword, sense_no, limit=3)` uses up to 5 tiers, stopping at the first tier that returns results:
+`get_examples(ent_seq, headword, sense_no, limit=3)` uses up to 3 tiers, stopping at the first tier that returns results:
 
 | Tier | Query | Notes |
 |---|---|---|
 | 1 | `ent_seq` + `sense_no` | Exact sense match — most precise |
 | 2 | `ent_seq` only | Any sense for this entry |
-| 3 | `headword` + `sense_no` | Text match, specific sense |
-| 4 | `headword` only | Text match, any sense |
-| 5 | `jp_text LIKE %headword%` | Sentence text contains the word |
+| 3 | `headword` + `sense_no` | Indexed text match, specific sense |
 
-Tiers 1–2 only run when `ent_seq` is provided. Tiers 3–5 only run when `headword` is provided. In practice, most lookups succeed at Tier 3 or 4 because the EDRDG corpus indexes words primarily by headword, not ent_seq.
+Tiers 1–2 only run when `ent_seq` is provided. Tier 3 only runs when `headword` is provided.
 
-Tier 5 exists because some common words (e.g. `熱い`) appear in many sentences but are never tagged with a `[sense]` number in any B-line. Without Tier 5, those words would return zero examples despite having 40+ relevant sentences in the corpus.
+Only EDRDG-indexed links are used. If a word has no indexed examples, the lookup returns an empty list — consistent with how Jisho handles the same data.
 
 Within each tier, rows with `is_checked = 1` (EDRDG-verified sentences) are returned first.
 
@@ -192,17 +190,15 @@ Within each tier, rows with `is_checked = 1` (EDRDG-verified sentences) are retu
 `services/vocab_service.py` wraps both jamdict and the example service:
 
 1. Calls `jamdict.lookup(text)` — returns all matching dictionary entries.
-2. For each entry, for each sense (1-indexed), calls `get_examples(ent_seq, primary_headword, sense_no)`.
+2. For each entry, for each sense (1-indexed), calls `get_examples(ent_seq, headword, sense_no)`.
 3. Returns the combined structure.
 
-The `primary_headword` is `kanji_forms[0]` if the entry has kanji forms, otherwise `kana_forms[0]`.
+The `headword` passed to `get_examples` is `kanji_forms[0]` (or `kana_forms[0]` if no kanji) — but only for the **first entry** returned by jamdict. When a lookup returns multiple entries sharing the same kanji form (e.g. 山 = やま and さん), EDRDG's headword index (`山[01]`) refers to the primary やま meaning and cannot distinguish between entries. Secondary entries receive `headword=None` and rely on ent_seq tiers only.
 
 ---
 
 ## Known Limitations
 
-**Sparse sense coverage.** The EDRDG linking is manually curated and incomplete. Many senses, especially rare or abstract ones, have no linked sentences. In that case, the tiered lookup falls back to examples from the entry as a whole (Tier 4) or a text search (Tier 5), so the examples shown may not precisely illustrate that specific sense.
-
-**Tier 5 false positives.** The `LIKE %headword%` search can match words where the headword appears as part of a longer compound. For example, searching for `熱` would also match `熱い`, `加熱`, etc. This only triggers when all other tiers fail, so it is the last resort.
+**Sparse sense coverage.** The EDRDG linking is manually curated and incomplete. Many senses, especially rare or abstract ones, have no linked sentences and return an empty list. This is intentional — showing unverified examples would be misleading.
 
 **Static corpus.** The Tatoeba/Tanaka corpus bundled here is a snapshot. Updating it requires re-downloading `examples.utf`, re-running the build script, and redeploying.

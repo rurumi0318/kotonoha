@@ -44,16 +44,23 @@ def lookup(text: str) -> list[dict]:
     result = jam.lookup(text)
 
     entries = []
-    for entry in result.entries:
+    for entry_idx, entry in enumerate(result.entries):
         kanji_forms = [k.text for k in entry.kanji_forms]
         kana_forms = [k.text for k in entry.kana_forms]
         primary_headword = (kanji_forms[0] if kanji_forms else kana_forms[0]) if (kanji_forms or kana_forms) else None
+
+        # Headword-based lookup (Tier 3) cannot distinguish between entries
+        # that share the same kanji form (e.g. 山 = やま and さん). EDRDG
+        # indexes sentences by written form only, so '山[01]' always refers
+        # to the primary やま meaning. Restrict headword lookup to the first
+        # entry; secondary entries rely on ent_seq tiers only.
+        headword_for_lookup = primary_headword if entry_idx == 0 else None
 
         senses = []
         for sense_no, sense in enumerate(entry.senses, start=1):
             examples = get_examples(
                 ent_seq=int(entry.idseq),
-                headword=primary_headword,
+                headword=headword_for_lookup,
                 sense_no=sense_no,
             )
             senses.append({
