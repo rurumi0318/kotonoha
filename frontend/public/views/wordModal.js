@@ -9,8 +9,7 @@ import { showModal, closeModal, escapeHtml, showToast } from '../utils.js';
  * @param {object|null}  opts.existing  Existing word object (edit mode only)
  * @param {string}       opts.cid       Collection ID
  * @param {string}       opts.did       Deck ID
- * @param {Function}     [opts.onSaved] Called after a successful save so the
- *                                      caller can refresh its own view state
+ * @param {Function}     [opts.onSaved] Called after a successful save
  */
 export function openWordModal({ mode, existing, cid, did, onSaved }) {
   const isEdit = mode === 'edit';
@@ -26,7 +25,9 @@ export function openWordModal({ mode, existing, cid, did, onSaved }) {
   let defData = initDefs;
   let lookupState = 'idle'; // 'idle' | 'loading' | 'results' | 'error' | 'empty'
   let lookupResults = [];
-  const addedSenses = new Set(); // "idseq_senseNo" — senses already added as definitions
+  let lookupQuery = '';      // word input value at the time of last lookup
+  let committedIdseq = null; // idseq of the entry from which the first sense was added
+  const addedSenses = new Set(); // "idseq_senseNo"
 
   showModal(`
     <div class="modal-header">
@@ -43,6 +44,14 @@ export function openWordModal({ mode, existing, cid, did, onSaved }) {
           <button class="btn-secondary" id="wm-lookup-btn">Look up</button>
         </div>
         <div class="form-error" id="wm-word-err" style="display:none"></div>
+      </div>
+
+      <div class="form-group" style="margin-top:-4px">
+        <label class="form-label" for="wm-hint">Reading <span class="text-secondary">(optional — helps distinguish words with the same kanji)</span></label>
+        <input id="wm-hint" class="form-input ja-input" type="text" lang="ja"
+          placeholder="e.g. にんき"
+          value="${isEdit ? escapeHtml(existing.kana_hint || '') : ''}"
+          autocomplete="off">
       </div>
 
       <div id="wm-lookup-zone"></div>
@@ -68,11 +77,12 @@ export function openWordModal({ mode, existing, cid, did, onSaved }) {
     </div>
   `);
 
-  // Widen the modal on PC (fix #4)
+  // Widen modal on PC
   document.querySelector('.modal-box')?.classList.add('modal-box--wide');
 
   document.getElementById('modal-cancel').onclick = closeModal;
   const wordInput = document.getElementById('wm-word');
+  const hintInput = document.getElementById('wm-hint');
   wordInput.focus();
 
   // ── Lookup ────────────────────────────────────────────────────────
@@ -83,6 +93,7 @@ export function openWordModal({ mode, existing, cid, did, onSaved }) {
     const saveBtn = document.getElementById('modal-save');
     if (saveBtn) saveBtn.disabled = frozen;
     wordInput.disabled = frozen;
+    hintInput.disabled = frozen;
     const lookupBtn = document.getElementById('wm-lookup-btn');
     if (lookupBtn) lookupBtn.disabled = frozen;
   }
@@ -91,8 +102,10 @@ export function openWordModal({ mode, existing, cid, did, onSaved }) {
     const q = wordInput.value.trim();
     if (!q) return;
 
+    lookupQuery = q;
     lookupState = 'loading';
     lookupResults = [];
+    committedIdseq = null;
     addedSenses.clear();
     renderLookupZone();
     setFormFrozen(true);
@@ -120,10 +133,8 @@ export function openWordModal({ mode, existing, cid, did, onSaved }) {
     const zone = document.getElementById('wm-lookup-zone');
     if (!zone) return;
 
-    if (lookupState === 'idle') {
-      zone.innerHTML = '';
-      return;
-    }
+    if (lookupState === 'idle') { zone.innerHTML = ''; return; }
+
     if (lookupState === 'loading') {
       zone.innerHTML = `
         <div class="wm-lookup-loading">
@@ -141,17 +152,19 @@ export function openWordModal({ mode, existing, cid, did, onSaved }) {
       return;
     }
 
-    // results
     zone.innerHTML = `<div class="wm-lookup-results">${lookupResults.map((e, i) => renderEntry(e, i)).join('')}</div>`;
     bindLookupActions();
   }
 
   function renderEntry(entry, entryIdx) {
+    // Once committed to an entry, hide all others
+    if (committedIdseq !== null && entry.idseq !== committedIdseq) return '';
+
     const display = entry.kanji_forms[0] || entry.kana_forms[0] || '';
     const reading = entry.kanji_forms.length && entry.kana_forms[0] ? entry.kana_forms[0] : '';
     const sensesHtml = entry.senses
       .filter(s => s.gloss.length)
-      .map(s => renderSense(s, entryIdx))
+      .map(s => renderSense(s, entryIdx, entry.idseq))
       .join('');
 
     return `
@@ -164,12 +177,11 @@ export function openWordModal({ mode, existing, cid, did, onSaved }) {
       </div>`;
   }
 
-  function renderSense(sense, entryIdx) {
-    const key = `${lookupResults[entryIdx].idseq}_${sense.sense_no}`;
+  function renderSense(sense, entryIdx, idseq) {
+    const key = `${idseq}_${sense.sense_no}`;
     const gloss = sense.gloss.join(', ');
     const pos = sense.pos[0] || '';
 
-    // Already added — show as a muted "done" row
     if (addedSenses.has(key)) {
       return `
         <div class="wm-sense wm-sense--added">
@@ -183,7 +195,6 @@ export function openWordModal({ mode, existing, cid, did, onSaved }) {
         </div>`;
     }
 
-    // Examples rendered as checkable rows (multi-select)
     const examplesHtml = sense.examples.length
       ? `<div class="wm-examples">
           ${sense.examples.map((ex, xi) => `
@@ -210,6 +221,7 @@ export function openWordModal({ mode, existing, cid, did, onSaved }) {
           </div>
           <button class="btn-ghost wm-add-sense-btn"
             data-sense-key="${key}"
+            data-entry-idx="${entryIdx}"
             data-gloss="${escapeHtml(gloss)}">+ Add</button>
         </div>
         ${examplesHtml}
@@ -224,19 +236,38 @@ export function openWordModal({ mode, existing, cid, did, onSaved }) {
       btn.onclick = () => {
         const key = btn.dataset.senseKey;
         const gloss = btn.dataset.gloss;
+        const entryIdx = parseInt(btn.dataset.entryIdx);
+        const entry = lookupResults[entryIdx];
+
+        // On first add: commit to this entry and auto-fill word + hint
+        if (committedIdseq === null) {
+          committedIdseq = entry.idseq;
+
+          const primaryForm = entry.kanji_forms[0] ?? entry.kana_forms[0] ?? '';
+          const primaryReading = entry.kana_forms[0] ?? '';
+
+          // Auto-fill word input only if still matches the original lookup query
+          if (wordInput.value.trim() === lookupQuery) {
+            wordInput.value = primaryForm;
+          }
+          // Auto-fill hint only if the user hasn't typed anything
+          if (!hintInput.value.trim()) {
+            hintInput.value = primaryReading;
+          }
+        }
 
         // Collect checked examples from this sense's block
         const senseEl = zone.querySelector(`.wm-sense[data-sense-key="${key}"]`);
         const sentences = senseEl
           ? [...senseEl.querySelectorAll('.wm-example-check:checked')].map(cb => {
-              const entry = lookupResults[parseInt(cb.dataset.entryIdx)];
-              const sense = entry.senses.find(s => s.sense_no === parseInt(cb.dataset.senseNo));
-              const ex = sense.examples[parseInt(cb.dataset.exampleIdx)];
+              const e = lookupResults[parseInt(cb.dataset.entryIdx)];
+              const s = e.senses.find(s => s.sense_no === parseInt(cb.dataset.senseNo));
+              const ex = s.examples[parseInt(cb.dataset.exampleIdx)];
               return { surface: ex.jp, en: ex.en };
             })
           : [];
 
-        // Fill the last definition slot if it's empty; otherwise append a new one
+        // Fill the last empty definition slot; otherwise append a new one
         const last = defData[defData.length - 1];
         if (last && !last.english_definition && !last.sentences.length) {
           last.english_definition = gloss;
@@ -295,7 +326,6 @@ export function openWordModal({ mode, existing, cid, did, onSaved }) {
     defsContainer.querySelectorAll('.remove-def-btn').forEach(btn => {
       btn.onclick = () => { defData.splice(Number(btn.dataset.idx), 1); renderDefs(); };
     });
-
     defsContainer.querySelectorAll('.add-sent-btn').forEach(btn => {
       btn.onclick = () => {
         defData[Number(btn.dataset.def)].sentences.push({ surface: '', en: '' });
@@ -304,14 +334,12 @@ export function openWordModal({ mode, existing, cid, did, onSaved }) {
         all[all.length - 1]?.focus();
       };
     });
-
     defsContainer.querySelectorAll('.remove-sent-btn').forEach(btn => {
       btn.onclick = () => {
         defData[Number(btn.dataset.def)].sentences.splice(Number(btn.dataset.sent), 1);
         renderDefs();
       };
     });
-
     defsContainer.querySelectorAll('.def-english').forEach(inp => {
       inp.oninput = () => { defData[Number(inp.dataset.idx)].english_definition = inp.value; };
     });
@@ -334,6 +362,7 @@ export function openWordModal({ mode, existing, cid, did, onSaved }) {
 
   document.getElementById('modal-save').onclick = async () => {
     const wordSurface = wordInput.value.trim();
+    const kanaHint   = hintInput.value.trim();
     const wordErr    = document.getElementById('wm-word-err');
     const notes      = document.getElementById('wm-notes').value.trim();
     const saveBtn    = document.getElementById('modal-save');
@@ -360,7 +389,7 @@ export function openWordModal({ mode, existing, cid, did, onSaved }) {
 
     try {
       if (isEdit) {
-        const patch = { definitions, user_notes: notes };
+        const patch = { kana_hint: kanaHint, definitions, user_notes: notes };
         if (wordSurface !== (existing.word?.surface || '')) {
           patch.word_surface = wordSurface;
         }
@@ -371,6 +400,7 @@ export function openWordModal({ mode, existing, cid, did, onSaved }) {
       } else {
         const result = await api.post(`/collections/${cid}/decks/${did}/words`, {
           word_surface: wordSurface,
+          kana_hint: kanaHint,
           definitions,
           user_notes: notes,
         });

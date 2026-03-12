@@ -65,7 +65,7 @@ async def create_word(
     _require_exists(deck_ref, "Deck")
 
     # Check for duplicates across all user's decks
-    duplicates = _find_duplicates(db, uid, body.word_surface)
+    duplicates = _find_duplicates(db, uid, body.word_surface, body.kana_hint)
 
     # Convert raw Japanese input to FuriganaSegment
     word_segment = text_to_furigana_segment(body.word_surface)
@@ -77,6 +77,7 @@ async def create_word(
         "collection_id": collection_id,
         "deck_id": deck_id,
         "word": word_segment,
+        "kana_hint": body.kana_hint,
         "definitions": definitions,
         "user_notes": body.user_notes,
         "is_paused": False,
@@ -106,6 +107,9 @@ async def update_word(
 
     if body.word_surface is not None:
         updates["word"] = text_to_furigana_segment(body.word_surface)
+
+    if body.kana_hint is not None:
+        updates["kana_hint"] = body.kana_hint
 
     if body.definitions is not None:
         updates["definitions"] = _convert_definitions(body.definitions)
@@ -171,11 +175,11 @@ def _convert_definitions(definition_inputs) -> list[dict]:
     ]
 
 
-def _find_duplicates(db, uid: str, word_surface: str) -> list[dict]:
+def _find_duplicates(db, uid: str, word_surface: str, kana_hint: str) -> list[dict]:
     """
-    Query all words for this user with the same surface text.
-    Returns a list of {collection_id, collection_name, deck_id, deck_name}
-    for each duplicate found.
+    Query all words for this user with the same surface text and kana_hint.
+    Two words are considered duplicates only when both surface and kana_hint
+    match — allowing 人気(にんき) and 人気(ひとけ) to coexist without warning.
 
     Requires a composite Firestore index on: (user_id ASC, word.surface ASC)
     """
@@ -189,6 +193,8 @@ def _find_duplicates(db, uid: str, word_surface: str) -> list[dict]:
     duplicates = []
     for doc in matches:
         data = doc.to_dict()
+        if data.get("kana_hint", "") != kana_hint:
+            continue
         cid = data.get("collection_id", "")
         did = data.get("deck_id", "")
 

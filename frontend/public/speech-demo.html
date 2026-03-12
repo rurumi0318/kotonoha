@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kotonoha Speech Demo</title>
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --card-bg: #1e293b;
+            --accent-color: #6366f1;
+            --accent-hover: #4f46e5;
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+            --input-bg: #0f172a;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background-color: var(--bg-color);
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            color: var(--text-primary);
+        }
+
+        .container {
+            width: 90%;
+            max-width: 500px;
+            padding: 2.5rem;
+            background: var(--card-bg);
+            border-radius: 1.5rem;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3), 0 10px 10px -5px rgba(0, 0, 0, 0.2);
+            text-align: center;
+        }
+
+        h1 {
+            font-size: 1.875rem;
+            margin-bottom: 0.5rem;
+            font-weight: 700;
+            letter-spacing: -0.025em;
+        }
+
+        p {
+            color: var(--text-secondary);
+            margin-bottom: 2rem;
+            font-size: 0.875rem;
+        }
+
+        .input-group {
+            margin-bottom: 1.5rem;
+        }
+
+        textarea {
+            width: 100%;
+            padding: 1rem;
+            border-radius: 0.75rem;
+            border: 2px solid transparent;
+            background-color: var(--input-bg);
+            color: var(--text-primary);
+            font-size: 1.125rem;
+            resize: none;
+            box-sizing: border-box;
+            transition: border-color 0.2s, box-shadow 0.2s;
+            outline: none;
+        }
+
+        textarea:focus {
+            border-color: var(--accent-color);
+            box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.2);
+        }
+
+        button {
+            width: 100%;
+            padding: 0.875rem;
+            border-radius: 0.75rem;
+            border: none;
+            background-color: var(--accent-color);
+            color: white;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background-color 0.2s, transform 0.1s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+        }
+
+        button:hover {
+            background-color: var(--accent-hover);
+        }
+
+        button:active {
+            transform: scale(0.98);
+        }
+
+        .icon {
+            width: 20px;
+            height: 20px;
+            fill: currentColor;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>Speech Demo</h1>
+    <p>Enter Japanese text to hear it spoken.</p>
+    
+    <div class="input-group">
+        <label style="display: block; text-align: left; margin-bottom: 0.5rem; color: var(--text-secondary); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em;">Select Voice</label>
+        <select id="voiceSelect" style="width: 100%; margin-bottom: 1rem; padding: 0.75rem; border-radius: 0.75rem; background: var(--input-bg); color: var(--text-primary); border: 2px solid transparent; font-size: 1rem; outline: none; cursor: pointer; transition: border-color 0.2s;">
+            <option value="">Loading voices...</option>
+        </select>
+        <textarea id="textInput" rows="3" placeholder="Enter text here...">大きい</textarea>
+    </div>
+
+    <button id="playBtn">
+        <svg class="icon" viewBox="0 0 24 24">
+            <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/>
+        </svg>
+        Play Voice
+    </button>
+</div>
+
+<script>
+    const playBtn = document.getElementById('playBtn');
+    const textInput = document.getElementById('textInput');
+    const voiceSelect = document.getElementById('voiceSelect');
+
+    let voices = [];
+
+    function populateVoiceList() {
+        // Filter for Japanese and English voices
+        voices = window.speechSynthesis.getVoices().filter(v => 
+            v.lang.startsWith('ja') || v.lang.startsWith('en')
+        );
+        
+        voiceSelect.innerHTML = '';
+        
+        voices.forEach((voice, i) => {
+            const option = document.createElement('option');
+            option.textContent = `${voice.name} (${voice.lang})`;
+            option.setAttribute('data-lang', voice.lang);
+            option.setAttribute('data-name', voice.name);
+            
+            // Try to default to a Japanese voice
+            if (voice.lang.startsWith('ja')) {
+                option.selected = true;
+            }
+            
+            voiceSelect.appendChild(option);
+        });
+
+        if (voices.length === 0) {
+            const option = document.createElement('option');
+            option.textContent = 'No voices found. Try a different browser.';
+            voiceSelect.appendChild(option);
+        }
+    }
+
+    // Voices are loaded asynchronously
+    populateVoiceList();
+    if (speechSynthesis.onvoiceschanged !== undefined) {
+        speechSynthesis.onvoiceschanged = populateVoiceList;
+    }
+
+    // Styling the select focus
+    voiceSelect.addEventListener('focus', () => voiceSelect.style.borderColor = 'var(--accent-color)');
+    voiceSelect.addEventListener('blur', () => voiceSelect.style.borderColor = 'transparent');
+
+    playBtn.addEventListener('click', () => {
+        const text = textInput.value.trim();
+        if (!text) return;
+
+        window.speechSynthesis.cancel();
+
+        const utterance = new SpeechSynthesisUtterance(text);
+        
+        const selectedVoiceName = voiceSelect.selectedOptions[0].getAttribute('data-name');
+        const selectedVoice = voices.find(v => v.name === selectedVoiceName);
+        
+        if (selectedVoice) {
+            utterance.voice = selectedVoice;
+            utterance.lang = selectedVoice.lang;
+        }
+
+        utterance.rate = 0.9;
+        window.speechSynthesis.speak(utterance);
+    });
+</script>
+
+</body>
+</html>

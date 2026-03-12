@@ -21,6 +21,7 @@ class Definition(BaseModel):
 
 class WordData(BaseModel):
     word: FuriganaSegment
+    kana_hint: str = ""
     definitions: list[Definition]
     user_notes: str = ""
     is_paused: bool = False
@@ -45,12 +46,14 @@ class DefinitionInput(BaseModel):
 
 class WordCreateRequest(BaseModel):
     word_surface: str
+    kana_hint: str = ""
     definitions: list[DefinitionInput]
     user_notes: str = ""
 
 
 class WordUpdateRequest(BaseModel):
     word_surface: str | None = None
+    kana_hint: str | None = None
     definitions: list[DefinitionInput] | None = None
     user_notes: str | None = None
     is_paused: bool | None = None

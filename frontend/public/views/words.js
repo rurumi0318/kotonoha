@@ -108,7 +108,10 @@ export default async function renderWords(app, cid, did) {
         <div class="word-item" data-id="${w.id}">
           <span class="card-drag" title="Drag to reorder">⠿</span>
           <div class="word-item-body" data-id="${w.id}">
-            <span class="word-surface-sm" lang="ja">${furigana}</span>
+            <div class="word-surface-with-hint">
+              <span class="word-surface-sm" lang="ja">${furigana}</span>
+              ${w.kana_hint ? `<span class="word-kana-hint" lang="ja">${escapeHtml(w.kana_hint)}</span>` : ''}
+            </div>
             <div class="word-item-right">
               ${fsrsStateBadge(w.fsrs_data?.state)}
               <span class="due-label ${isOverdue ? 'overdue' : ''}">${escapeHtml(dueStr)}</span>

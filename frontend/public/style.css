@@ -826,6 +826,31 @@ ruby rt {
   cursor: pointer;
 }
 
+/* kana_hint display */
+.word-surface-with-hint {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+.word-kana-hint {
+  font-size: 0.75rem;
+  color: var(--text-2);
+  font-family: var(--font-ja);
+  background: var(--surface-el);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 1px 6px;
+  flex-shrink: 0;
+}
+.word-kana-hint-lg {
+  text-align: center;
+  font-size: 1rem;
+  color: var(--text-2);
+  font-family: var(--font-ja);
+  margin-top: 4px;
+  margin-bottom: 8px;
+}
+
 /* Wide modal variant for word add/edit on PC */
 @media (min-width: 600px) {
   .modal-box--wide { max-width: 680px; }

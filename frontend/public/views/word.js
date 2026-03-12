@@ -65,6 +65,7 @@ export default async function renderWord(app, cid, did, wid) {
         ${breadcrumb ? `<div class="breadcrumb">${escapeHtml(breadcrumb)}</div>` : ''}
 
         <div class="word-surface-lg" lang="ja">${renderFurigana(w.word)}</div>
+        ${w.kana_hint ? `<div class="word-kana-hint-lg" lang="ja">${escapeHtml(w.kana_hint)}</div>` : ''}
 
         <!-- Definitions -->
         <div class="word-section">
