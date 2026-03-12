@@ -20,13 +20,22 @@ backend/
 │   ├── decks.py          # CRUD + reorder for decks
 │   ├── words.py          # CRUD + reorder for words; furigana conversion on write
 │   ├── review.py         # FSRS review submission and due-word query
-│   └── preferences.py    # User preferences
-└── services/
-    ├── firebase.py       # Firebase app initialization
-    ├── auth.py           # FastAPI dependency: Firebase JWT → user ID
-    ├── furigana.py       # Raw Japanese text → FuriganaSegment (MeCab)
-    └── fsrs_service.py   # FSRS scheduling wrapper (fsrs v6)
+│   ├── preferences.py    # User preferences
+│   └── vocab.py          # Dictionary lookup with example sentences
+├── services/
+│   ├── firebase.py       # Firebase app initialization
+│   ├── auth.py           # FastAPI dependency: Firebase JWT → user ID
+│   ├── furigana.py       # Raw Japanese text → FuriganaSegment (MeCab)
+│   ├── fsrs_service.py   # FSRS scheduling wrapper (fsrs v6)
+│   ├── example_service.py  # SQLite example sentence lookup
+│   └── vocab_service.py    # jamdict + example attachment
+├── data/
+│   └── examples.db       # Generated SQLite database (gitignored — see below)
+└── tools/
+    └── build_example_db.py  # One-time script to build examples.db
 ```
+
+See [VOCAB_LOOKUP.md](./VOCAB_LOOKUP.md) for the vocabulary lookup system, including how to build the SQLite database.
 
 ## Authentication
 
@@ -183,3 +192,10 @@ Requires a composite Firestore index: `(user_id ASC, is_paused ASC, fsrs_data.du
 |--------|------|-------------|
 | GET | `/preferences` | Get user preferences |
 | PUT | `/preferences` | Update user preferences |
+
+### Vocabulary Lookup
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/vocab/lookup?q={text}` | Dictionary lookup with senses and example sentences |
+
+See [VOCAB_LOOKUP.md](./VOCAB_LOOKUP.md) for full details.

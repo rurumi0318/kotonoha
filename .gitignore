@@ -31,6 +31,9 @@ Thumbs.db
 .env.production.local
 frontend/public/firebase-config.js
 
+# Data files — large, generated locally, not committed
+backend/data/
+
 # Cloud Run / Docker (Local artifacts)
 .dockerignore
 
