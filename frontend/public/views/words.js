@@ -4,7 +4,7 @@ import { state } from '../state.js';
 import { renderFurigana, renderFuriganaText } from '../furigana.js';
 import {
   navigate, showToast, showModal, closeModal, escapeHtml,
-  fsrsStateBadge, formatDate,
+  fsrsStateBadge, formatDate, getFuriganaEnabled, setFuriganaEnabled,
 } from '../utils.js';
 import { openWordModal } from './wordModal.js';
 
@@ -19,6 +19,9 @@ export default async function renderWords(app, cid, did) {
           Decks
         </button>
         <div class="header-title" id="deck-title"></div>
+        <button class="btn-icon" id="furigana-btn" title="Toggle furigana">
+          <span class="furigana-btn-icon">ふ</span>
+        </button>
         <button class="btn-icon" id="test-btn" title="Test this deck">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <polygon points="5 3 19 12 5 21 5 3"/>
@@ -43,6 +46,7 @@ export default async function renderWords(app, cid, did) {
 
   document.getElementById('back-btn').onclick = () => navigate(`#/decks/${cid}`);
   document.getElementById('test-btn').onclick = () => navigate(`#/test/${cid}/${did}`);
+  document.getElementById('furigana-btn').onclick = () => setFuriganaEnabled(!getFuriganaEnabled());
   document.getElementById('new-btn').onclick = () => openWordModal({
     mode: 'add',
     cid,

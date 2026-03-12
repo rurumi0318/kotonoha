@@ -122,3 +122,13 @@ export function escapeHtml(str) {
 export function round2(n) {
   return Math.round(n * 100) / 100;
 }
+
+// ── Furigana toggle ─────────────────────────────────────────────────
+export function getFuriganaEnabled() {
+  return localStorage.getItem('kotonoha_furigana') !== '0';
+}
+
+export function setFuriganaEnabled(enabled) {
+  localStorage.setItem('kotonoha_furigana', enabled ? '1' : '0');
+  document.body.classList.toggle('furigana-off', !enabled);
+}

@@ -379,6 +379,7 @@ ruby rt {
   font-family: var(--font-ja);
   font-size: 2.8rem;
   line-height: 2;
+  text-align: center;
   color: var(--text-1);
   margin-bottom: 8px;
 }
@@ -1168,6 +1169,38 @@ ruby rt {
   cursor: not-allowed;
 }
 
+
+/* ── Furigana toggle ───────────────────────────────────────────── */
+body.furigana-off ruby rt { display: none; }
+
+.furigana-btn-icon {
+  font-family: var(--font-ja);
+  font-size: 0.95rem;
+  line-height: 1;
+}
+body.furigana-off .furigana-btn-icon {
+  text-decoration: line-through;
+  opacity: 0.45;
+}
+
+/* ── Word navigation bar ───────────────────────────────────────── */
+.word-nav-bar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+.word-nav-count {
+  font-size: 0.82rem;
+  color: var(--text-2);
+  min-width: 48px;
+  text-align: center;
+}
+.word-nav-btn:disabled {
+  opacity: 0.25;
+  cursor: default;
+}
 
 /* ── Responsive ────────────────────────────────────────────────── */
 @media (min-width: 600px) {
