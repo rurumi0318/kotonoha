@@ -86,8 +86,10 @@ a { color: inherit; text-decoration: none; }
   flex: 1;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
   padding: 20px 16px 40px;
 }
+.app-main::-webkit-scrollbar { display: none; }
 
 /* ── Page header ───────────────────────────────────────────────── */
 .page-header {

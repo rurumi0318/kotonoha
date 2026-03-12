@@ -163,6 +163,7 @@ export default async function renderWord(app, cid, did, wid) {
         word = fresh.find(fw => fw.id === wid);
         if (word) renderWordDetail(word);
       },
+      onDeleted: () => navigate(`#/words/${cid}/${did}`),
     });
   }
 }

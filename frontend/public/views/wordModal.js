@@ -9,9 +9,10 @@ import { showModal, closeModal, escapeHtml, showToast } from '../utils.js';
  * @param {object|null}  opts.existing  Existing word object (edit mode only)
  * @param {string}       opts.cid       Collection ID
  * @param {string}       opts.did       Deck ID
- * @param {Function}     [opts.onSaved] Called after a successful save
+ * @param {Function}     [opts.onSaved]   Called after a successful save
+ * @param {Function}     [opts.onDeleted] Called after a successful delete (edit mode only)
  */
-export function openWordModal({ mode, existing, cid, did, onSaved }) {
+export function openWordModal({ mode, existing, cid, did, onSaved, onDeleted }) {
   const isEdit = mode === 'edit';
 
   const initDefs = isEdit
@@ -73,6 +74,7 @@ export function openWordModal({ mode, existing, cid, did, onSaved }) {
     <div id="wm-dup-warning" class="duplicate-warning" style="display:none;margin:0 20px 8px"></div>
     <div class="modal-footer">
       <button class="btn-secondary" id="modal-cancel">Cancel</button>
+      ${isEdit ? '<button class="btn-danger" id="modal-delete">Delete</button>' : ''}
       <button class="btn-primary" id="modal-save">${isEdit ? 'Save' : 'Add'}</button>
     </div>
   `);
@@ -81,6 +83,25 @@ export function openWordModal({ mode, existing, cid, did, onSaved }) {
   document.querySelector('.modal-box')?.classList.add('modal-box--wide');
 
   document.getElementById('modal-cancel').onclick = closeModal;
+
+  if (isEdit) {
+    document.getElementById('modal-delete').onclick = async () => {
+      const deleteBtn = document.getElementById('modal-delete');
+      deleteBtn.disabled = true;
+      deleteBtn.innerHTML = '<span class="spinner-sm"></span>';
+      try {
+        await api.delete(`/collections/${cid}/decks/${did}/words/${existing.id}`);
+        closeModal();
+        showToast('Word deleted', 'success');
+        onDeleted?.();
+      } catch {
+        showToast('Failed to delete word', 'error');
+        deleteBtn.disabled = false;
+        deleteBtn.textContent = 'Delete';
+      }
+    };
+  }
+
   const wordInput = document.getElementById('wm-word');
   const hintInput = document.getElementById('wm-hint');
   wordInput.focus();
