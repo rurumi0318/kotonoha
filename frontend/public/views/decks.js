@@ -190,13 +190,13 @@ export default async function renderDecks(app, cid) {
         <div class="form-group">
           <label class="form-label" for="deck-name">Name</label>
           <input id="deck-name" class="form-input" type="text" placeholder="e.g. Animals"
-            value="${isEdit ? escapeHtml(existing.name) : ''}" maxlength="80">
+            value="${isEdit ? escapeHtml(existing.name) : ''}" maxlength="80" autocomplete="off">
           <div class="form-error" id="deck-name-err" style="display:none"></div>
         </div>
         <div class="form-group">
           <label class="form-label" for="deck-tag">Tag <span class="text-secondary">(optional)</span></label>
           <input id="deck-tag" class="form-input" type="text" placeholder="e.g. N3, Grammar, Verbs"
-            value="${isEdit ? escapeHtml(existing.tag || '') : ''}" maxlength="40">
+            value="${isEdit ? escapeHtml(existing.tag || '') : ''}" maxlength="40" autocomplete="off">
         </div>
       </div>
       <div class="modal-footer">

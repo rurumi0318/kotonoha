@@ -135,13 +135,13 @@ export default async function renderCollections(app) {
         <div class="form-group">
           <label class="form-label" for="col-name">Name</label>
           <input id="col-name" class="form-input" type="text" placeholder="e.g. JLPT N3"
-            value="${isEdit ? escapeHtml(existing.name) : ''}" maxlength="80">
+            value="${isEdit ? escapeHtml(existing.name) : ''}" maxlength="80" autocomplete="off">
           <div class="form-error" id="col-name-err" style="display:none"></div>
         </div>
         <div class="form-group">
           <label class="form-label" for="col-desc">Description <span class="text-secondary">(optional)</span></label>
           <textarea id="col-desc" class="form-textarea" placeholder="What is this collection for?"
-            maxlength="300">${isEdit ? escapeHtml(existing.desc || '') : ''}</textarea>
+            maxlength="300" autocomplete="off">${isEdit ? escapeHtml(existing.desc || '') : ''}</textarea>
         </div>
       </div>
       <div class="modal-footer">

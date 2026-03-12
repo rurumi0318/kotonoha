@@ -172,14 +172,14 @@ export default async function renderWord(app, cid, did, wid) {
         <div class="form-group">
           <label class="form-label" for="em-word">Japanese Word</label>
           <input id="em-word" class="form-input ja-input" type="text" lang="ja"
-            placeholder="e.g. 猫" value="${escapeHtml(w.word?.surface || '')}">
+            placeholder="e.g. 猫" value="${escapeHtml(w.word?.surface || '')}" autocomplete="off">
         </div>
         <div class="word-section-title" style="margin-bottom:10px">Definitions</div>
         <div id="em-defs"></div>
         <button class="btn-ghost" id="em-add-def" style="width:100%;margin-top:4px">+ Add Definition</button>
         <div class="form-group" style="margin-top:16px">
           <label class="form-label" for="em-notes">Notes</label>
-          <textarea id="em-notes" class="form-textarea" maxlength="1000">${escapeHtml(w.user_notes || '')}</textarea>
+          <textarea id="em-notes" class="form-textarea" maxlength="1000" autocomplete="off">${escapeHtml(w.user_notes || '')}</textarea>
         </div>
       </div>
       <div class="modal-footer">
@@ -203,7 +203,7 @@ export default async function renderWord(app, cid, did, wid) {
           <div class="form-group" style="margin-bottom:10px">
             <label class="form-label">English meaning</label>
             <input class="form-input def-english" data-idx="${di}" type="text"
-              placeholder="e.g. cat" value="${escapeHtml(def.english_definition)}">
+              placeholder="e.g. cat" value="${escapeHtml(def.english_definition)}" autocomplete="off">
           </div>
           <div class="form-label" style="margin-bottom:6px">Sentences</div>
           <div class="sentences-list">
@@ -211,9 +211,9 @@ export default async function renderWord(app, cid, did, wid) {
               <div class="sentence-row">
                 <div style="flex:1;display:flex;flex-direction:column;gap:6px">
                   <input class="form-input ja-input sent-surface" lang="ja" data-def="${di}" data-sent="${si}"
-                    type="text" placeholder="Japanese sentence" value="${escapeHtml(s.surface)}">
+                    type="text" placeholder="Japanese sentence" value="${escapeHtml(s.surface)}" autocomplete="off">
                   <input class="form-input sent-en" data-def="${di}" data-sent="${si}"
-                    type="text" placeholder="English translation" value="${escapeHtml(s.en)}">
+                    type="text" placeholder="English translation" value="${escapeHtml(s.en)}" autocomplete="off">
                 </div>
                 <button class="btn-icon remove-sent-btn" data-def="${di}" data-sent="${si}" style="flex-shrink:0">
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
