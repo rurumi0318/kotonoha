@@ -1,10 +1,12 @@
 """
-Vocabulary lookup: jamdict dictionary entries + linked example sentences.
+Vocabulary lookup: jamdict dictionary entries + linked example sentences,
+with async translation of English text.
 """
 
 from jamdict import Jamdict
 
 from services.example_service import get_examples
+from services.translator import TranslatorService
 
 _jam: Jamdict | None = None
 
@@ -16,10 +18,11 @@ def _get_jam() -> Jamdict:
     return _jam
 
 
-def lookup(text: str) -> list[dict]:
+async def lookup(text: str, translator: TranslatorService) -> list[dict]:
     """
     Look up a Japanese word and return all matching dictionary entries,
-    each with senses and example sentences.
+    each with senses and example sentences.  All English strings (gloss,
+    example translations) are passed through the translator before returning.
 
     Returns a list of entries:
     [
@@ -76,5 +79,30 @@ def lookup(text: str) -> list[dict]:
             "kana_forms": kana_forms,
             "senses": senses,
         })
+
+    # Collect all English strings for translation
+    english_strings: list[str] = []
+    # (entry_idx, sense_idx, field, example_idx_or_None)
+    positions: list[tuple] = []
+
+    for ei, entry in enumerate(entries):
+        for si, sense in enumerate(entry["senses"]):
+            for gi, g in enumerate(sense["gloss"]):
+                english_strings.append(g)
+                positions.append(("gloss", ei, si, gi))
+            for xi, ex in enumerate(sense["examples"]):
+                english_strings.append(ex["en"])
+                positions.append(("example_en", ei, si, xi))
+
+    if english_strings:
+        translated = await translator.translate_batch(english_strings)
+        for i, pos in enumerate(positions):
+            kind = pos[0]
+            if kind == "gloss":
+                _, ei, si, gi = pos
+                entries[ei]["senses"][si]["gloss"][gi] = translated[i]
+            elif kind == "example_en":
+                _, ei, si, xi = pos
+                entries[ei]["senses"][si]["examples"][xi]["en"] = translated[i]
 
     return entries

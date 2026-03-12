@@ -712,6 +712,131 @@ ruby rt {
 
 @keyframes spin { to { transform: rotate(360deg); } }
 
+/* ── Word modal lookup zone ─────────────────────────────────────── */
+.wm-word-row {
+  display: flex;
+  gap: 8px;
+}
+.wm-word-row .form-input { flex: 1; }
+.wm-word-row .btn-secondary { flex-shrink: 0; white-space: nowrap; }
+
+.wm-lookup-loading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-2);
+  font-size: 0.85rem;
+  margin-bottom: 12px;
+}
+
+.wm-lookup-msg {
+  padding: 10px 14px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-2);
+  font-size: 0.85rem;
+  margin-bottom: 12px;
+}
+
+.wm-lookup-results {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  max-height: 260px;
+  overflow-y: auto;
+  margin-bottom: 16px;
+  scrollbar-width: none; /* Firefox */
+}
+.wm-lookup-results::-webkit-scrollbar { display: none; } /* Chrome/Safari */
+
+.wm-entry { border-bottom: 1px solid var(--border); }
+.wm-entry:last-child { border-bottom: none; }
+
+.wm-entry-header {
+  padding: 8px 12px 4px;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+.wm-entry-kanji { font-size: 1rem; font-weight: 600; color: var(--text-1); }
+.wm-entry-reading { font-size: 0.82rem; color: var(--text-2); }
+
+.wm-sense {
+  padding: 4px 12px 8px;
+  border-top: 1px solid var(--border);
+}
+.wm-sense-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+.wm-sense-no {
+  font-size: 0.75rem;
+  color: var(--text-2);
+  min-width: 18px;
+  padding-top: 3px;
+  flex-shrink: 0;
+}
+.wm-sense-body { flex: 1; display: flex; flex-direction: column; gap: 1px; }
+.wm-sense-gloss { font-size: 0.88rem; color: var(--text-1); }
+.wm-sense-pos { font-size: 0.75rem; color: var(--text-2); }
+.wm-add-sense-btn { font-size: 0.78rem; padding: 2px 8px; flex-shrink: 0; }
+
+.wm-examples { margin-top: 6px; display: flex; flex-direction: column; gap: 4px; }
+.wm-example {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 6px 8px;
+  background: var(--surface-el);
+  border-radius: var(--radius-sm);
+}
+.wm-example-body { flex: 1; display: flex; flex-direction: column; gap: 2px; }
+.wm-example-jp { font-size: 0.83rem; color: var(--text-1); }
+.wm-example-en { font-size: 0.75rem; color: var(--text-2); }
+.wm-add-ex-btn { font-size: 0.75rem; padding: 2px 6px; flex-shrink: 0; }
+
+/* Added sense row */
+.wm-sense--added { opacity: 0.45; }
+.wm-sense-added-badge {
+  font-size: 0.75rem;
+  color: var(--success);
+  flex-shrink: 0;
+  padding-top: 2px;
+}
+
+/* Example rows are now selectable labels */
+.wm-example {
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.1s;
+}
+.wm-example:hover { background: color-mix(in srgb, var(--surface-el) 60%, var(--accent) 40%); }
+.wm-example-check {
+  flex-shrink: 0;
+  margin-top: 2px;
+  accent-color: var(--accent);
+  width: 14px;
+  height: 14px;
+  cursor: pointer;
+}
+
+/* Wide modal variant for word add/edit on PC */
+@media (min-width: 600px) {
+  .modal-box--wide { max-width: 680px; }
+}
+
+/* Disable form interaction during lookup */
+.wm-form-disabled {
+  pointer-events: none;
+  opacity: 0.4;
+}
+
 /* ── States ────────────────────────────────────────────────────── */
 .loading-state {
   display: flex;

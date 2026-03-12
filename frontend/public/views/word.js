@@ -2,9 +2,10 @@ import { api } from '../api.js';
 import { state } from '../state.js';
 import { renderFurigana, renderFuriganaText } from '../furigana.js';
 import {
-  navigate, showToast, showModal, closeModal, escapeHtml,
+  navigate, showToast, escapeHtml,
   fsrsStateLabel, formatDate, formatDateFull, round2,
 } from '../utils.js';
+import { openWordModal } from './wordModal.js';
 
 export default async function renderWord(app, cid, did, wid) {
   if (!cid || !did || !wid) { navigate('#/collections'); return; }
@@ -151,149 +152,16 @@ export default async function renderWord(app, cid, did, wid) {
     });
 
     // Edit button
-    document.getElementById('edit-btn').onclick = () => openEditModal(w);
-  }
-
-  function openEditModal(w) {
-    const defData = (w.definitions || []).map(d => ({
-      english_definition: d.english_definition || '',
-      sentences: (d.sentences || []).map(s => ({
-        surface: s.surface || '',
-        en: s.en || '',
-      })),
-    }));
-    if (!defData.length) defData.push({ english_definition: '', sentences: [] });
-
-    showModal(`
-      <div class="modal-header">
-        <div class="modal-title">Edit Word</div>
-      </div>
-      <div class="modal-body">
-        <div class="form-group">
-          <label class="form-label" for="em-word">Japanese Word</label>
-          <input id="em-word" class="form-input ja-input" type="text" lang="ja"
-            placeholder="e.g. 猫" value="${escapeHtml(w.word?.surface || '')}" autocomplete="off">
-        </div>
-        <div class="word-section-title" style="margin-bottom:10px">Definitions</div>
-        <div id="em-defs"></div>
-        <button class="btn-ghost" id="em-add-def" style="width:100%;margin-top:4px">+ Add Definition</button>
-        <div class="form-group" style="margin-top:16px">
-          <label class="form-label" for="em-notes">Notes</label>
-          <textarea id="em-notes" class="form-textarea" maxlength="1000" autocomplete="off">${escapeHtml(w.user_notes || '')}</textarea>
-        </div>
-      </div>
-      <div class="modal-footer">
-        <button class="btn-secondary" id="modal-cancel">Cancel</button>
-        <button class="btn-primary" id="modal-save">Save</button>
-      </div>
-    `);
-
-    document.getElementById('modal-cancel').onclick = closeModal;
-    document.getElementById('em-word').focus();
-
-    const defsContainer = document.getElementById('em-defs');
-
-    function renderDefs() {
-      defsContainer.innerHTML = defData.map((def, di) => `
-        <div class="form-section">
-          <div class="form-section-header">
-            <span class="form-section-title">Definition ${di + 1}</span>
-            ${defData.length > 1 ? `<button class="btn-ghost remove-def-btn" data-idx="${di}" style="font-size:0.8rem;padding:2px 8px">✕ Remove</button>` : ''}
-          </div>
-          <div class="form-group" style="margin-bottom:10px">
-            <label class="form-label">English meaning</label>
-            <input class="form-input def-english" data-idx="${di}" type="text"
-              placeholder="e.g. cat" value="${escapeHtml(def.english_definition)}" autocomplete="off">
-          </div>
-          <div class="form-label" style="margin-bottom:6px">Sentences</div>
-          <div class="sentences-list">
-            ${def.sentences.map((s, si) => `
-              <div class="sentence-row">
-                <div style="flex:1;display:flex;flex-direction:column;gap:6px">
-                  <input class="form-input ja-input sent-surface" lang="ja" data-def="${di}" data-sent="${si}"
-                    type="text" placeholder="Japanese sentence" value="${escapeHtml(s.surface)}" autocomplete="off">
-                  <input class="form-input sent-en" data-def="${di}" data-sent="${si}"
-                    type="text" placeholder="English translation" value="${escapeHtml(s.en)}" autocomplete="off">
-                </div>
-                <button class="btn-icon remove-sent-btn" data-def="${di}" data-sent="${si}" style="flex-shrink:0">
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                    <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-                  </svg>
-                </button>
-              </div>
-            `).join('')}
-          </div>
-          <button class="btn-ghost add-sent-btn" data-def="${di}" style="font-size:0.82rem;margin-top:4px">+ Add Sentence</button>
-        </div>
-      `).join('');
-
-      defsContainer.querySelectorAll('.remove-def-btn').forEach(btn => {
-        btn.onclick = () => { defData.splice(Number(btn.dataset.idx), 1); renderDefs(); };
-      });
-      defsContainer.querySelectorAll('.add-sent-btn').forEach(btn => {
-        btn.onclick = () => {
-          defData[Number(btn.dataset.def)].sentences.push({ surface: '', en: '' });
-          renderDefs();
-        };
-      });
-      defsContainer.querySelectorAll('.remove-sent-btn').forEach(btn => {
-        btn.onclick = () => {
-          defData[Number(btn.dataset.def)].sentences.splice(Number(btn.dataset.sent), 1);
-          renderDefs();
-        };
-      });
-      defsContainer.querySelectorAll('.def-english').forEach(inp => {
-        inp.oninput = () => { defData[Number(inp.dataset.idx)].english_definition = inp.value; };
-      });
-      defsContainer.querySelectorAll('.sent-surface').forEach(inp => {
-        inp.oninput = () => { defData[Number(inp.dataset.def)].sentences[Number(inp.dataset.sent)].surface = inp.value; };
-      });
-      defsContainer.querySelectorAll('.sent-en').forEach(inp => {
-        inp.oninput = () => { defData[Number(inp.dataset.def)].sentences[Number(inp.dataset.sent)].en = inp.value; };
-      });
-    }
-
-    renderDefs();
-    document.getElementById('em-add-def').onclick = () => {
-      defData.push({ english_definition: '', sentences: [] });
-      renderDefs();
-    };
-
-    document.getElementById('modal-save').onclick = async () => {
-      const wordSurface = document.getElementById('em-word').value.trim();
-      const notes       = document.getElementById('em-notes').value.trim();
-      const saveBtn     = document.getElementById('modal-save');
-
-      saveBtn.disabled = true;
-      saveBtn.innerHTML = '<span class="spinner-sm"></span>';
-
-      try {
-        const patch = {};
-        if (wordSurface && wordSurface !== (w.word?.surface || '')) {
-          patch.word_surface = wordSurface;
-        }
-        patch.definitions = defData.map(d => ({
-          english_definition: d.english_definition,
-          sentences: d.sentences.filter(s => s.surface.trim()).map(s => ({
-            surface: s.surface.trim(),
-            en: s.en.trim(),
-          })),
-        }));
-        patch.user_notes = notes;
-
-        await api.patch(`/collections/${cid}/decks/${did}/words/${wid}`, patch);
-        closeModal();
-        showToast('Word updated', 'success');
-
-        // Reload word
+    document.getElementById('edit-btn').onclick = () => openWordModal({
+      mode: 'edit',
+      existing: w,
+      cid,
+      did,
+      onSaved: async () => {
         const fresh = await api.get(`/collections/${cid}/decks/${did}/words`);
-        word = fresh.find(w => w.id === wid);
+        word = fresh.find(fw => fw.id === wid);
         if (word) renderWordDetail(word);
-      } catch (err) {
-        showToast(err.message || 'Failed to save', 'error');
-        saveBtn.disabled = false;
-        saveBtn.textContent = 'Save';
-      }
-    };
+      },
+    });
   }
 }

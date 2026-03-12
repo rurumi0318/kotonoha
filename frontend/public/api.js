@@ -46,3 +46,4 @@ export const api = {
 
 export const getPreferences    = ()     => request('GET', '/preferences');
 export const updatePreferences = (data) => request('PUT', '/preferences', data);
+export const vocabLookup       = (q)    => request('GET', `/vocab/lookup?q=${encodeURIComponent(q)}`);
