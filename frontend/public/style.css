@@ -1036,15 +1036,37 @@ body.has-footer .toast-container {
   --accent-h:   #f0a870;
 }
 
-[data-theme="slate"] {
-  --bg:         #111214;
-  --surface:    #1b1d20;
-  --surface-el: #252729;
-  --border:     #363840;
-  --text-1:     #e2e4e8;
-  --text-2:     #888e99;
-  --accent:     #7b8fd8;
-  --accent-h:   #95a3e2;
+[data-theme="ash"] {
+  --bg:         #2b2930;
+  --surface:    #37353e;
+  --surface-el: #44444e;
+  --border:     #524f5c;
+  --text-1:     #d3dad9;
+  --text-2:     #9295a0;
+  --accent:     #a87c7c;
+  --accent-h:   #bf9595;
+}
+
+[data-theme="ocean"] {
+  --bg:         #122637;
+  --surface:    #1b3c53;
+  --surface-el: #234c6a;
+  --border:     #2d5e7d;
+  --text-1:     #e3e3e3;
+  --text-2:     #7fa8c4;
+  --accent:     #5a8aaa;
+  --accent-h:   #74a1bf;
+}
+
+[data-theme="ember"] {
+  --bg:         #1a262f;
+  --surface:    #25343f;
+  --surface-el: #2f4152;
+  --border:     #3d5263;
+  --text-1:     #eaefef;
+  --text-2:     #8fa8b8;
+  --accent:     #ff9b51;
+  --accent-h:   #ffb070;
 }
 
 [data-theme="mist"] {

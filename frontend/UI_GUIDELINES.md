@@ -30,7 +30,7 @@ All visual values come from CSS custom properties defined in `:root`. Never hard
 | `--warning`   | `#fbbf24` | Overdue / caution states           |
 | `--danger`    | `#f87171` | Destructive actions, errors        |
 
-Additional themes (`amber`, `slate`, `mist`) override the same tokens so all components automatically adapt.
+Additional themes (`amber`, `ash`, `ocean`, `ember`, `mist`) override the same tokens so all components automatically adapt.
 
 ### Radii
 

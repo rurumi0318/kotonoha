@@ -6,7 +6,9 @@ import { getPreferences, updatePreferences } from '../api.js';
 const THEMES = [
   { id: 'midnight', name: 'Midnight', bg: '#0f1117', surface: '#1a1d27', accent: '#6c6fff', text: '#eef0ff' },
   { id: 'amber',    name: 'Amber',    bg: '#110f0a', surface: '#1e1912', accent: '#e8924a', text: '#fdf4e7' },
-  { id: 'slate',    name: 'Slate',    bg: '#111214', surface: '#1b1d20', accent: '#7b8fd8', text: '#e2e4e8' },
+  { id: 'ash',      name: 'Ash',      bg: '#2b2930', surface: '#37353e', accent: '#a87c7c', text: '#d3dad9' },
+  { id: 'ocean',    name: 'Ocean',    bg: '#122637', surface: '#1b3c53', accent: '#5a8aaa', text: '#e3e3e3' },
+  { id: 'ember',    name: 'Ember',    bg: '#1a262f', surface: '#25343f', accent: '#ff9b51', text: '#eaefef' },
   { id: 'mist',     name: 'Mist',     bg: '#f0f2f8', surface: '#ffffff', accent: '#5c5fef', text: '#1a1d30' },
 ];
 
