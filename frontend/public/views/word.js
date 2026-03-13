@@ -6,7 +6,6 @@ import {
   fsrsStateLabel, formatDate, formatDateFull, round2,
   getFuriganaEnabled, setFuriganaEnabled,
 } from '../utils.js';
-import { openWordModal } from './wordModal.js';
 
 export default async function renderWord(app, cid, did, wid) {
   if (!cid || !did || !wid) { navigate('#/collections'); return; }
@@ -17,13 +16,15 @@ export default async function renderWord(app, cid, did, wid) {
   const existingLayout = app.querySelector('.view-layout[data-word-cid]');
   const isSameDeck = existingLayout?.dataset.wordCid === cid && existingLayout?.dataset.wordDid === did;
 
+  // Word detail always has a footer; route() removes it on navigation away
+  document.body.classList.add('has-footer');
+
   if (!isSameDeck) {
     app.innerHTML = `
       <div class="view-layout" data-word-cid="${cid}" data-word-did="${did}">
         <header class="app-header">
-          <button class="btn-back" id="back-btn">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
-            Words
+          <button class="btn-back" id="back-btn" title="Back" aria-label="Back">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
           </button>
           <div class="word-header-nav" id="word-header-title"></div>
           <button class="btn-icon" id="furigana-btn" title="Toggle furigana">
@@ -41,11 +42,15 @@ export default async function renderWord(app, cid, did, wid) {
             <div class="loading-state"><div class="spinner"></div></div>
           </div>
         </main>
+        <footer class="app-footer">
+          <button class="btn-secondary app-footer-btn" id="details-btn" title="Show details">Show Details</button>
+        </footer>
       </div>
     `;
 
     document.getElementById('back-btn').onclick = () => navigate(`#/words/${cid}/${did}`);
     document.getElementById('furigana-btn').onclick = () => setFuriganaEnabled(!getFuriganaEnabled());
+    document.getElementById('details-btn').onclick = () => showToast('Coming soon', 'success');
 
     // ── Swipe navigation (mobile) — set up once per deck view ─────────
     const contentEl = document.getElementById('word-content');
@@ -99,13 +104,11 @@ export default async function renderWord(app, cid, did, wid) {
     const hasPrev  = idx > 0;
     const hasNext  = idx < wordsList.length - 1;
     const fsrs     = w.fsrs_data || {};
-    const colName  = state.collectionName || '';
     const deckName = state.deckName || '';
-    const breadcrumb = [colName, deckName].filter(Boolean).join(' › ');
 
     // Populate fixed header: breadcrumb text + nav controls
     document.getElementById('word-header-title').innerHTML = `
-      <span class="word-header-breadcrumb">${escapeHtml(breadcrumb || renderFuriganaText(w.word))}</span>
+      <span class="word-header-breadcrumb">${escapeHtml(deckName || renderFuriganaText(w.word))}</span>
       ${wordsList.length > 1 ? `
         <div class="word-header-nav-controls">
           <button class="btn-icon word-nav-btn" id="word-nav-prev" ${hasPrev ? '' : 'disabled'} title="Previous word (←)">
@@ -216,22 +219,6 @@ export default async function renderWord(app, cid, did, wid) {
     });
 
     // Edit button
-    document.getElementById('edit-btn').onclick = () => openWordModal({
-      mode: 'edit',
-      existing: w,
-      cid,
-      did,
-      onSaved: async () => {
-        delete state.wordsCache[cacheKey];
-        wordsList = await api.get(`/collections/${cid}/decks/${did}/words`);
-        state.wordsCache[cacheKey] = wordsList;
-        word = wordsList.find(fw => fw.id === wid);
-        if (word) renderWordDetail(word);
-      },
-      onDeleted: () => {
-        delete state.wordsCache[cacheKey];
-        navigate(`#/words/${cid}/${did}`);
-      },
-    });
+    document.getElementById('edit-btn').onclick = () => navigate(`#/edit-word/${cid}/${did}/${w.id}`);
   }
 }

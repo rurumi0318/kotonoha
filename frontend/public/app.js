@@ -8,6 +8,7 @@ import renderCollections from './views/collections.js';
 import renderDecks       from './views/decks.js';
 import renderWords       from './views/words.js';
 import renderWord        from './views/word.js';
+import renderWordForm    from './views/wordModal.js';
 import renderTest        from './views/test.js';
 import renderSettings    from './views/settings.js';
 import renderOnboarding  from './views/onboarding.js';
@@ -41,17 +42,21 @@ async function route() {
     return;
   }
 
+  document.body.classList.remove('has-footer');
+
   try {
     switch (view) {
-      case 'login':        await renderLogin(app);                              break;
-      case 'onboarding':   await renderOnboarding(app);                        break;
-      case 'collections':  await renderCollections(app);                        break;
-      case 'decks':        await renderDecks(app, parts[1]);                    break;
-      case 'words':        await renderWords(app, parts[1], parts[2]);          break;
-      case 'word':         await renderWord(app, parts[1], parts[2], parts[3]); break;
-      case 'test':         await renderTest(app, parts[1], parts[2]);           break;
-      case 'settings':     await renderSettings(app);                           break;
-      default:             await renderCollections(app);                        break;
+      case 'login':        await renderLogin(app);                                        break;
+      case 'onboarding':   await renderOnboarding(app);                                   break;
+      case 'collections':  await renderCollections(app);                                   break;
+      case 'decks':        await renderDecks(app, parts[1]);                               break;
+      case 'words':        await renderWords(app, parts[1], parts[2]);                     break;
+      case 'word':         await renderWord(app, parts[1], parts[2], parts[3]);            break;
+      case 'add-word':     await renderWordForm(app, parts[1], parts[2]);                  break;
+      case 'edit-word':    await renderWordForm(app, parts[1], parts[2], parts[3]);        break;
+      case 'test':         await renderTest(app, parts[1], parts[2]);                      break;
+      case 'settings':     await renderSettings(app);                                      break;
+      default:             await renderCollections(app);                                   break;
     }
   } catch (err) {
     console.error('Route error:', err);
@@ -59,6 +64,16 @@ async function route() {
 }
 
 window.addEventListener('hashchange', route);
+
+// On wide screens the app is centered with gutters. Redirect wheel events
+// that land in the gutters so the main content area still scrolls.
+window.addEventListener('wheel', (e) => {
+  const main = document.querySelector('.app-main');
+  if (!main || main.contains(e.target)) return;
+  // Don't redirect while a modal is open
+  if (!document.getElementById('modal-overlay')?.classList.contains('hidden')) return;
+  main.scrollTop += e.deltaY;
+}, { passive: true });
 
 // Process any pending redirect sign-in before listening for auth state.
 // Without this, onAuthStateChanged fires with null before the redirect

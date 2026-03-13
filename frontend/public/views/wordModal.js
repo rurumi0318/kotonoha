@@ -1,19 +1,30 @@
 import { api, vocabLookup } from '../api.js';
-import { showModal, closeModal, escapeHtml, showToast } from '../utils.js';
+import { state } from '../state.js';
+import { escapeHtml, showToast, navigate } from '../utils.js';
 
-/**
- * Opens the Add / Edit word modal with dictionary lookup.
- *
- * @param {object}       opts
- * @param {'add'|'edit'} opts.mode
- * @param {object|null}  opts.existing  Existing word object (edit mode only)
- * @param {string}       opts.cid       Collection ID
- * @param {string}       opts.did       Deck ID
- * @param {Function}     [opts.onSaved]   Called after a successful save
- * @param {Function}     [opts.onDeleted] Called after a successful delete (edit mode only)
- */
-export function openWordModal({ mode, existing, cid, did, onSaved, onDeleted }) {
-  const isEdit = mode === 'edit';
+export default async function renderWordForm(app, cid, did, wid) {
+  if (!cid || !did) { navigate('#/collections'); return; }
+
+  const isEdit = !!wid;
+  const cacheKey = `${cid}/${did}`;
+
+  // ── Fetch existing word for edit mode ──────────────────────────────
+  let existing = null;
+  if (isEdit) {
+    let words = state.wordsCache[cacheKey];
+    if (!words) {
+      try {
+        words = await api.get(`/collections/${cid}/decks/${did}/words`);
+        state.wordsCache[cacheKey] = words;
+      } catch {
+        showToast('Failed to load word', 'error');
+        navigate(`#/words/${cid}/${did}`);
+        return;
+      }
+    }
+    existing = words.find(w => w.id === wid);
+    if (!existing) { navigate(`#/words/${cid}/${did}`); return; }
+  }
 
   const initDefs = isEdit
     ? (existing.definitions || []).map(d => ({
@@ -26,78 +37,89 @@ export function openWordModal({ mode, existing, cid, did, onSaved, onDeleted }) 
   let defData = initDefs;
   let lookupState = 'idle'; // 'idle' | 'loading' | 'results' | 'error' | 'empty'
   let lookupResults = [];
-  let lookupQuery = '';      // word input value at the time of last lookup
-  let committedIdseq = null; // idseq of the entry from which the first sense was added
-  const addedSenses = new Set(); // "idseq_senseNo"
+  let lookupQuery = '';
+  let committedIdseq = null;
+  const addedSenses = new Set();
 
-  showModal(`
-    <div class="modal-header">
-      <div class="modal-title">${isEdit ? 'Edit Word' : 'Add Word'}</div>
-    </div>
-    <div class="modal-body" id="wm-body">
-      <div class="form-group">
-        <label class="form-label" for="wm-word">Japanese Word</label>
-        <div class="wm-word-row">
-          <input id="wm-word" class="form-input ja-input" type="text" lang="ja"
-            placeholder="e.g. 猫"
-            value="${isEdit ? escapeHtml(existing.word?.surface || '') : ''}"
+  app.innerHTML = `
+    <div class="view-layout">
+      <header class="app-header">
+        <button class="btn-back" id="wf-cancel-btn" title="Cancel" aria-label="Cancel">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
+        </button>
+        <div class="header-title">${isEdit ? 'Edit Word' : 'Add Word'}</div>
+        ${isEdit ? `
+        <button class="btn-icon" id="wf-delete-btn" title="Delete word">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+            <path d="M10 11v6"/><path d="M14 11v6"/>
+            <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
+          </svg>
+        </button>` : '<div class="header-spacer"></div>'}
+      </header>
+      <main class="app-main">
+        <div class="form-group">
+          <label class="form-label" for="wm-word">Japanese Word</label>
+          <div class="wm-word-row">
+            <input id="wm-word" class="form-input ja-input" type="text" lang="ja"
+              placeholder="e.g. 猫"
+              value="${isEdit ? escapeHtml(existing.word?.surface || '') : ''}"
+              autocomplete="off">
+            <button class="btn-secondary" id="wm-lookup-btn">Look up</button>
+          </div>
+          <div class="form-error" id="wm-word-err" style="display:none"></div>
+        </div>
+
+        <div class="form-group" style="margin-top:-4px">
+          <label class="form-label" for="wm-hint">Reading <span class="text-secondary">(optional)</span></label>
+          <input id="wm-hint" class="form-input ja-input" type="text" lang="ja"
+            placeholder="e.g. にんき"
+            value="${isEdit ? escapeHtml(existing.kana_hint || '') : ''}"
             autocomplete="off">
-          <button class="btn-secondary" id="wm-lookup-btn">Look up</button>
         </div>
-        <div class="form-error" id="wm-word-err" style="display:none"></div>
-      </div>
 
-      <div class="form-group" style="margin-top:-4px">
-        <label class="form-label" for="wm-hint">Reading <span class="text-secondary">(optional — helps distinguish words with the same kanji)</span></label>
-        <input id="wm-hint" class="form-input ja-input" type="text" lang="ja"
-          placeholder="e.g. にんき"
-          value="${isEdit ? escapeHtml(existing.kana_hint || '') : ''}"
-          autocomplete="off">
-      </div>
+        <div id="wm-lookup-zone"></div>
 
-      <div id="wm-lookup-zone"></div>
+        <div class="wm-form-zone">
+          <div style="margin-bottom:8px">
+            <span style="font-size:0.78rem;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-2)">Your Definitions</span>
+          </div>
+          <div id="wm-defs"></div>
+          <button class="btn-ghost" id="wm-add-def" style="width:100%;margin-top:4px">+ Add Definition Manually</button>
 
-      <div class="wm-form-zone">
-        <div style="margin-bottom:8px">
-          <span style="font-size:0.78rem;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-2)">Your Definitions</span>
+          <div class="form-group" style="margin-top:16px">
+            <label class="form-label" for="wm-notes">Notes <span class="text-secondary">(optional)</span></label>
+            <textarea id="wm-notes" class="form-textarea" placeholder="Any personal notes…"
+              maxlength="1000" autocomplete="off">${isEdit ? escapeHtml(existing.user_notes || '') : ''}</textarea>
+          </div>
         </div>
-        <div id="wm-defs"></div>
-        <button class="btn-ghost" id="wm-add-def" style="width:100%;margin-top:4px">+ Add Definition Manually</button>
 
-        <div class="form-group" style="margin-top:16px">
-          <label class="form-label" for="wm-notes">Notes <span class="text-secondary">(optional)</span></label>
-          <textarea id="wm-notes" class="form-textarea" placeholder="Any personal notes…"
-            maxlength="1000" autocomplete="off">${isEdit ? escapeHtml(existing.user_notes || '') : ''}</textarea>
-        </div>
-      </div>
+        <div id="wm-dup-warning" class="duplicate-warning" style="display:none;margin-top:8px"></div>
+      </main>
+      <footer class="app-footer">
+        <button class="btn-primary app-footer-btn" id="wf-save-btn">${isEdit ? 'Save' : 'Add Word'}</button>
+      </footer>
     </div>
-    <div id="wm-dup-warning" class="duplicate-warning" style="display:none;margin:0 20px 8px"></div>
-    <div class="modal-footer">
-      <button class="btn-secondary" id="modal-cancel">Cancel</button>
-      ${isEdit ? '<button class="btn-danger" id="modal-delete">Delete</button>' : ''}
-      <button class="btn-primary" id="modal-save">${isEdit ? 'Save' : 'Add'}</button>
-    </div>
-  `);
+  `;
 
-  // Widen modal on PC
-  document.querySelector('.modal-box')?.classList.add('modal-box--wide');
+  document.body.classList.add('has-footer');
 
-  document.getElementById('modal-cancel').onclick = closeModal;
+  const backHash = isEdit ? `#/word/${cid}/${did}/${wid}` : `#/words/${cid}/${did}`;
+
+  document.getElementById('wf-cancel-btn').onclick = () => navigate(backHash);
 
   if (isEdit) {
-    document.getElementById('modal-delete').onclick = async () => {
-      const deleteBtn = document.getElementById('modal-delete');
+    document.getElementById('wf-delete-btn').onclick = async () => {
+      const deleteBtn = document.getElementById('wf-delete-btn');
       deleteBtn.disabled = true;
-      deleteBtn.innerHTML = '<span class="spinner-sm"></span>';
       try {
         await api.delete(`/collections/${cid}/decks/${did}/words/${existing.id}`);
-        closeModal();
+        delete state.wordsCache[cacheKey];
         showToast('Word deleted', 'success');
-        onDeleted?.();
+        navigate(`#/words/${cid}/${did}`);
       } catch {
         showToast('Failed to delete word', 'error');
         deleteBtn.disabled = false;
-        deleteBtn.textContent = 'Delete';
       }
     };
   }
@@ -111,7 +133,7 @@ export function openWordModal({ mode, existing, cid, did, onSaved, onDeleted }) 
   function setFormFrozen(frozen) {
     const zone = document.querySelector('.wm-form-zone');
     if (zone) zone.classList.toggle('wm-form-disabled', frozen);
-    const saveBtn = document.getElementById('modal-save');
+    const saveBtn = document.getElementById('wf-save-btn');
     if (saveBtn) saveBtn.disabled = frozen;
     wordInput.disabled = frozen;
     hintInput.disabled = frozen;
@@ -144,8 +166,9 @@ export function openWordModal({ mode, existing, cid, did, onSaved, onDeleted }) 
   }
 
   document.getElementById('wm-lookup-btn').onclick = doLookup;
+  // Guard against isComposing so Enter to confirm IME input is not intercepted
   wordInput.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') { e.preventDefault(); doLookup(); }
+    if (e.key === 'Enter' && !e.isComposing) { e.preventDefault(); doLookup(); }
   });
 
   // ── Lookup zone rendering ─────────────────────────────────────────
@@ -178,7 +201,6 @@ export function openWordModal({ mode, existing, cid, did, onSaved, onDeleted }) 
   }
 
   function renderEntry(entry, entryIdx) {
-    // Once committed to an entry, hide all others
     if (committedIdseq !== null && entry.idseq !== committedIdseq) return '';
 
     const display = entry.kanji_forms[0] || entry.kana_forms[0] || '';
@@ -220,7 +242,7 @@ export function openWordModal({ mode, existing, cid, did, onSaved, onDeleted }) 
       ? `<div class="wm-examples">
           ${sense.examples.map((ex, xi) => `
             <label class="wm-example">
-              <input type="checkbox" class="wm-example-check" checked
+              <input type="checkbox" class="wm-example-check" ${xi === 0 ? 'checked' : ''}
                 data-entry-idx="${entryIdx}"
                 data-sense-no="${sense.sense_no}"
                 data-example-idx="${xi}">
@@ -260,24 +282,20 @@ export function openWordModal({ mode, existing, cid, did, onSaved, onDeleted }) 
         const entryIdx = parseInt(btn.dataset.entryIdx);
         const entry = lookupResults[entryIdx];
 
-        // On first add: commit to this entry and auto-fill word + hint
         if (committedIdseq === null) {
           committedIdseq = entry.idseq;
 
           const primaryForm = entry.kanji_forms[0] ?? entry.kana_forms[0] ?? '';
           const primaryReading = entry.kana_forms[0] ?? '';
 
-          // Auto-fill word input only if still matches the original lookup query
           if (wordInput.value.trim() === lookupQuery) {
             wordInput.value = primaryForm;
           }
-          // Auto-fill hint only if the user hasn't typed anything
           if (!hintInput.value.trim()) {
             hintInput.value = primaryReading;
           }
         }
 
-        // Collect checked examples from this sense's block
         const senseEl = zone.querySelector(`.wm-sense[data-sense-key="${key}"]`);
         const sentences = senseEl
           ? [...senseEl.querySelectorAll('.wm-example-check:checked')].map(cb => {
@@ -288,7 +306,6 @@ export function openWordModal({ mode, existing, cid, did, onSaved, onDeleted }) 
             })
           : [];
 
-        // Fill the last empty definition slot; otherwise append a new one
         const last = defData[defData.length - 1];
         if (last && !last.english_definition && !last.sentences.length) {
           last.english_definition = gloss;
@@ -381,12 +398,12 @@ export function openWordModal({ mode, existing, cid, did, onSaved, onDeleted }) 
 
   // ── Save ──────────────────────────────────────────────────────────
 
-  document.getElementById('modal-save').onclick = async () => {
+  document.getElementById('wf-save-btn').onclick = async () => {
     const wordSurface = wordInput.value.trim();
     const kanaHint   = hintInput.value.trim();
     const wordErr    = document.getElementById('wm-word-err');
     const notes      = document.getElementById('wm-notes').value.trim();
-    const saveBtn    = document.getElementById('modal-save');
+    const saveBtn    = document.getElementById('wf-save-btn');
     const dupWarning = document.getElementById('wm-dup-warning');
 
     if (!wordSurface) {
@@ -415,9 +432,9 @@ export function openWordModal({ mode, existing, cid, did, onSaved, onDeleted }) 
           patch.word_surface = wordSurface;
         }
         await api.patch(`/collections/${cid}/decks/${did}/words/${existing.id}`, patch);
-        closeModal();
+        delete state.wordsCache[cacheKey];
         showToast('Word updated', 'success');
-        onSaved?.();
+        navigate(`#/word/${cid}/${did}/${existing.id}`);
       } else {
         const result = await api.post(`/collections/${cid}/decks/${did}/words`, {
           word_surface: wordSurface,
@@ -425,23 +442,27 @@ export function openWordModal({ mode, existing, cid, did, onSaved, onDeleted }) 
           definitions,
           user_notes: notes,
         });
-        onSaved?.();
+        delete state.wordsCache[cacheKey];
+        delete state.decksCache[cid];
         if (result.duplicates?.length) {
           const names = result.duplicates.map(d => `${d.collection_name} › ${d.deck_name}`).join(', ');
           dupWarning.textContent = `⚠ Also found in: ${names}`;
           dupWarning.style.display = 'block';
           saveBtn.disabled = false;
           saveBtn.textContent = 'Done';
-          saveBtn.onclick = closeModal;
+          saveBtn.onclick = () => {
+            showToast('Word added', 'success');
+            navigate(`#/words/${cid}/${did}`);
+          };
         } else {
-          closeModal();
           showToast('Word added', 'success');
+          navigate(`#/words/${cid}/${did}`);
         }
       }
     } catch (err) {
       showToast(err.message || 'Failed to save word', 'error');
       saveBtn.disabled = false;
-      saveBtn.textContent = isEdit ? 'Save' : 'Add';
+      saveBtn.textContent = isEdit ? 'Save' : 'Add Word';
     }
   };
 }

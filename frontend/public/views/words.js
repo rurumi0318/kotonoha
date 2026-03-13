@@ -6,7 +6,6 @@ import {
   navigate, showToast, showModal, closeModal, escapeHtml,
   fsrsStateBadge, formatDate, getFuriganaEnabled, setFuriganaEnabled,
 } from '../utils.js';
-import { openWordModal } from './wordModal.js';
 
 export default async function renderWords(app, cid, did) {
   if (!cid || !did) { navigate('#/collections'); return; }
@@ -15,9 +14,8 @@ export default async function renderWords(app, cid, did) {
   app.innerHTML = `
     <div class="view-layout">
       <header class="app-header">
-        <button class="btn-back" id="back-btn">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
-          Decks
+        <button class="btn-back" id="back-btn" title="Back" aria-label="Back">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
         </button>
         <div class="header-title word-header-breadcrumb" id="deck-title"></div>
         <button class="btn-icon" id="furigana-btn" title="Toggle furigana">
@@ -47,19 +45,7 @@ export default async function renderWords(app, cid, did) {
   document.getElementById('back-btn').onclick = () => navigate(`#/decks/${cid}`);
   document.getElementById('test-btn').onclick = () => navigate(`#/test/${cid}/${did}`);
   document.getElementById('furigana-btn').onclick = () => setFuriganaEnabled(!getFuriganaEnabled());
-  document.getElementById('new-btn').onclick = () => openWordModal({
-    mode: 'add',
-    cid,
-    did,
-    onSaved: async () => {
-      delete state.wordsCache[cacheKey];
-      delete state.decksCache[cid];
-      const fresh = await api.get(`/collections/${cid}/decks/${did}/words`);
-      state.wordsCache[cacheKey] = fresh;
-      words = fresh;
-      renderList(fresh);
-    },
-  });
+  document.getElementById('new-btn').onclick = () => navigate(`#/add-word/${cid}/${did}`);
 
   let words = [];
 
@@ -76,7 +62,7 @@ export default async function renderWords(app, cid, did) {
     const deckName = deck?.name || '';
     state.deckName = deckName;
     const colName = state.collectionName || '';
-    document.getElementById('deck-title').textContent = colName ? `${colName} › ${deckName}` : deckName;
+    document.getElementById('deck-title').textContent = deckName;
 
     words = fetchedWords;
     renderList(words);

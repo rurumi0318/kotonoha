@@ -9,9 +9,8 @@ export default async function renderDecks(app, cid) {
   app.innerHTML = `
     <div class="view-layout">
       <header class="app-header">
-        <button class="btn-back" id="back-btn">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
-          Collections
+        <button class="btn-back" id="back-btn" title="Back" aria-label="Back">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
         </button>
         <div class="header-title" id="col-title"></div>
       </header>
