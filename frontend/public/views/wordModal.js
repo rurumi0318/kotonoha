@@ -38,8 +38,29 @@ export default async function renderWordForm(app, cid, did, wid) {
   let lookupState = 'idle'; // 'idle' | 'loading' | 'results' | 'error' | 'empty'
   let lookupResults = [];
   let lookupQuery = '';
-  let committedIdseq = null;
-  const addedSenses = new Set();
+
+  // ── Lookup selection state ─────────────────────────────────────────
+  let selectedEntryIdx = 0;
+  let expandedEntries = new Set();
+  let senseChecks = new Map();   // entryIdx -> Set<sense_no>
+  let exampleChecks = new Map(); // `${entryIdx}_${senseNo}_${exIdx}` -> bool
+
+  function initCheckState() {
+    senseChecks = new Map();
+    exampleChecks = new Map();
+    selectedEntryIdx = 0;
+    expandedEntries = new Set();
+
+    lookupResults.forEach((entry, ei) => {
+      const firstSense = entry.senses.find(s => s.gloss.length);
+      senseChecks.set(ei, firstSense ? new Set([firstSense.sense_no]) : new Set());
+      entry.senses.forEach(s => {
+        s.examples.forEach((_, xi) => {
+          exampleChecks.set(`${ei}_${s.sense_no}_${xi}`, xi === 0);
+        });
+      });
+    });
+  }
 
   app.innerHTML = `
     <div class="view-layout">
@@ -91,8 +112,6 @@ export default async function renderWordForm(app, cid, did, wid) {
               maxlength="1000" autocomplete="off">${isEdit ? escapeHtml(existing.user_notes || '') : ''}</textarea>
           </div>
         </div>
-
-        <div id="wm-dup-warning" class="duplicate-warning" style="display:none;margin-top:8px"></div>
       </main>
       <footer class="app-footer">
         <button class="btn-primary app-footer-btn" id="wf-save-btn">${isEdit ? 'Save' : 'Add Word'}</button>
@@ -165,8 +184,6 @@ export default async function renderWordForm(app, cid, did, wid) {
     lookupQuery = q;
     lookupState = 'loading';
     lookupResults = [];
-    committedIdseq = null;
-    addedSenses.clear();
     renderLookupZone();
     setFormFrozen(true);
 
@@ -174,6 +191,7 @@ export default async function renderWordForm(app, cid, did, wid) {
       const results = await vocabLookup(q);
       lookupResults = results || [];
       lookupState = lookupResults.length ? 'results' : 'empty';
+      if (lookupState === 'results') initCheckState();
     } catch {
       lookupState = 'error';
     }
@@ -213,54 +231,60 @@ export default async function renderWordForm(app, cid, did, wid) {
       return;
     }
 
-    zone.innerHTML = `<div class="wm-lookup-results">${lookupResults.map((e, i) => renderEntry(e, i)).join('')}</div>`;
+    zone.innerHTML = `
+      <div class="wm-lookup-results">
+        ${lookupResults.map((e, i) => renderEntry(e, i)).join('')}
+        <div class="wm-lookup-footer">
+          <button class="btn-primary wm-apply-btn" id="wm-apply-btn">Apply</button>
+        </div>
+      </div>`;
     bindLookupActions();
   }
 
-  function renderEntry(entry, entryIdx) {
-    if (committedIdseq !== null && entry.idseq !== committedIdseq) return '';
-
+  function renderEntry(entry, ei) {
+    const isSelected = ei === selectedEntryIdx;
+    const isExpanded = expandedEntries.has(ei);
     const display = entry.kanji_forms[0] || entry.kana_forms[0] || '';
     const reading = entry.kanji_forms.length && entry.kana_forms[0] ? entry.kana_forms[0] : '';
-    const sensesHtml = entry.senses
-      .filter(s => s.gloss.length)
-      .map(s => renderSense(s, entryIdx, entry.idseq))
-      .join('');
+
+    const allSenses = entry.senses.filter(s => s.gloss.length);
+    const visibleSenses = isExpanded ? allSenses : allSenses.slice(0, 1);
+    const hasMore = allSenses.length > 1;
+
+    const sensesHtml = visibleSenses.map(s => renderSense(s, ei, isExpanded)).join('');
 
     return `
-      <div class="wm-entry">
+      <div class="wm-entry ${isSelected ? 'wm-entry--selected' : ''}" data-entry-idx="${ei}">
         <div class="wm-entry-header">
-          <span lang="ja" class="wm-entry-kanji">${escapeHtml(display)}</span>
-          ${reading ? `<span class="wm-entry-reading" lang="ja">${escapeHtml(reading)}</span>` : ''}
+          <label class="wm-entry-radio-label">
+            <input type="radio" name="wm-entry-radio" class="wm-entry-radio"
+              data-entry-idx="${ei}" ${isSelected ? 'checked' : ''}>
+            <span lang="ja" class="wm-entry-kanji">${escapeHtml(display)}</span>
+            ${reading ? `<span class="wm-entry-reading" lang="ja">${escapeHtml(reading)}</span>` : ''}
+          </label>
+          ${hasMore ? `
+            <button class="btn-ghost wm-expand-btn" data-entry-idx="${ei}">
+              ${isExpanded ? 'Show less' : 'Show more'}
+            </button>` : ''}
         </div>
         ${sensesHtml}
       </div>`;
   }
 
-  function renderSense(sense, entryIdx, idseq) {
-    const key = `${idseq}_${sense.sense_no}`;
+  function renderSense(sense, ei, isExpanded) {
+    const checked = senseChecks.get(ei)?.has(sense.sense_no) ?? false;
     const gloss = sense.gloss.join(', ');
     const pos = sense.pos[0] || '';
 
-    if (addedSenses.has(key)) {
-      return `
-        <div class="wm-sense wm-sense--added">
-          <div class="wm-sense-row">
-            <span class="wm-sense-no">${sense.sense_no}.</span>
-            <div class="wm-sense-body">
-              <div class="wm-sense-gloss">${escapeHtml(gloss)}</div>
-            </div>
-            <span class="wm-sense-added-badge">✓ Added</span>
-          </div>
-        </div>`;
-    }
+    const visibleExamples = isExpanded ? sense.examples : sense.examples.slice(0, 1);
 
-    const examplesHtml = sense.examples.length
+    const examplesHtml = visibleExamples.length
       ? `<div class="wm-examples">
-          ${sense.examples.map((ex, xi) => `
+          ${visibleExamples.map((ex, xi) => `
             <label class="wm-example">
-              <input type="checkbox" class="wm-example-check" ${xi === 0 ? 'checked' : ''}
-                data-entry-idx="${entryIdx}"
+              <input type="checkbox" class="wm-example-check"
+                ${exampleChecks.get(`${ei}_${sense.sense_no}_${xi}`) ? 'checked' : ''}
+                data-entry-idx="${ei}"
                 data-sense-no="${sense.sense_no}"
                 data-example-idx="${xi}">
               <div class="wm-example-body">
@@ -272,17 +296,19 @@ export default async function renderWordForm(app, cid, did, wid) {
       : '';
 
     return `
-      <div class="wm-sense" data-sense-key="${key}">
+      <div class="wm-sense">
         <div class="wm-sense-row">
-          <span class="wm-sense-no">${sense.sense_no}.</span>
+          <label class="wm-sense-check-label">
+            <input type="checkbox" class="wm-sense-check"
+              ${checked ? 'checked' : ''}
+              data-entry-idx="${ei}"
+              data-sense-no="${sense.sense_no}">
+            <span class="wm-sense-no">${sense.sense_no}.</span>
+          </label>
           <div class="wm-sense-body">
             <div class="wm-sense-gloss">${escapeHtml(gloss)}</div>
             ${pos ? `<div class="wm-sense-pos">${escapeHtml(pos)}</div>` : ''}
           </div>
-          <button class="btn-ghost wm-add-sense-btn"
-            data-sense-key="${key}"
-            data-entry-idx="${entryIdx}"
-            data-gloss="${escapeHtml(gloss)}">+ Add</button>
         </div>
         ${examplesHtml}
       </div>`;
@@ -292,50 +318,79 @@ export default async function renderWordForm(app, cid, did, wid) {
     const zone = document.getElementById('wm-lookup-zone');
     if (!zone) return;
 
-    zone.querySelectorAll('.wm-add-sense-btn').forEach(btn => {
-      btn.onclick = () => {
-        const key = btn.dataset.senseKey;
-        const gloss = btn.dataset.gloss;
-        const entryIdx = parseInt(btn.dataset.entryIdx);
-        const entry = lookupResults[entryIdx];
-
-        if (committedIdseq === null) {
-          committedIdseq = entry.idseq;
-
-          const primaryForm = entry.kanji_forms[0] ?? entry.kana_forms[0] ?? '';
-          const primaryReading = entry.kana_forms[0] ?? '';
-
-          if (wordInput.value.trim() === lookupQuery) {
-            wordInput.value = primaryForm;
-          }
-          if (!hintInput.value.trim()) {
-            hintInput.value = primaryReading;
-          }
-        }
-
-        const senseEl = zone.querySelector(`.wm-sense[data-sense-key="${key}"]`);
-        const sentences = senseEl
-          ? [...senseEl.querySelectorAll('.wm-example-check:checked')].map(cb => {
-              const e = lookupResults[parseInt(cb.dataset.entryIdx)];
-              const s = e.senses.find(s => s.sense_no === parseInt(cb.dataset.senseNo));
-              const ex = s.examples[parseInt(cb.dataset.exampleIdx)];
-              return { surface: ex.jp, en: ex.en };
-            })
-          : [];
-
-        const last = defData[defData.length - 1];
-        if (last && !last.english_definition && !last.sentences.length) {
-          last.english_definition = gloss;
-          last.sentences = sentences;
-        } else {
-          defData.push({ english_definition: gloss, sentences });
-        }
-
-        addedSenses.add(key);
-        renderDefs();
+    zone.querySelectorAll('.wm-entry-radio').forEach(radio => {
+      radio.onchange = () => {
+        selectedEntryIdx = parseInt(radio.dataset.entryIdx);
         renderLookupZone();
       };
     });
+
+    zone.querySelectorAll('.wm-expand-btn').forEach(btn => {
+      btn.onclick = () => {
+        const ei = parseInt(btn.dataset.entryIdx);
+        if (expandedEntries.has(ei)) expandedEntries.delete(ei);
+        else expandedEntries.add(ei);
+        renderLookupZone();
+      };
+    });
+
+    zone.querySelectorAll('.wm-sense-check').forEach(cb => {
+      cb.onchange = () => {
+        const ei = parseInt(cb.dataset.entryIdx);
+        const senseNo = parseInt(cb.dataset.senseNo);
+        const checks = senseChecks.get(ei) || new Set();
+        if (cb.checked) checks.add(senseNo);
+        else checks.delete(senseNo);
+        senseChecks.set(ei, checks);
+      };
+    });
+
+    zone.querySelectorAll('.wm-example-check').forEach(cb => {
+      cb.onchange = () => {
+        exampleChecks.set(`${cb.dataset.entryIdx}_${cb.dataset.senseNo}_${cb.dataset.exampleIdx}`, cb.checked);
+      };
+    });
+
+    document.getElementById('wm-apply-btn').onclick = doApply;
+  }
+
+  function doApply() {
+    const entry = lookupResults[selectedEntryIdx];
+    if (!entry) return;
+
+    const checkedSenseNos = senseChecks.get(selectedEntryIdx) || new Set();
+
+    if (checkedSenseNos.size === 0) {
+      lookupState = 'idle';
+      renderLookupZone();
+      return;
+    }
+
+    const checkedSenses = entry.senses.filter(s => s.gloss.length && checkedSenseNos.has(s.sense_no));
+
+    checkedSenses.forEach(sense => {
+      const gloss = sense.gloss.join(', ');
+      const sentences = sense.examples
+        .filter((_, xi) => exampleChecks.get(`${selectedEntryIdx}_${sense.sense_no}_${xi}`))
+        .map(ex => ({ surface: ex.jp, en: ex.en }));
+
+      const last = defData[defData.length - 1];
+      if (last && !last.english_definition && !last.sentences.length) {
+        last.english_definition = gloss;
+        last.sentences = sentences;
+      } else {
+        defData.push({ english_definition: gloss, sentences });
+      }
+    });
+
+    const primaryForm = entry.kanji_forms[0] ?? entry.kana_forms[0] ?? '';
+    const primaryReading = entry.kana_forms[0] ?? '';
+    if (wordInput.value.trim() === lookupQuery) wordInput.value = primaryForm;
+    if (!hintInput.value.trim()) hintInput.value = primaryReading;
+
+    renderDefs();
+    lookupState = 'idle';
+    renderLookupZone();
   }
 
   // ── Definitions ───────────────────────────────────────────────────
@@ -421,7 +476,6 @@ export default async function renderWordForm(app, cid, did, wid) {
     const wordErr    = document.getElementById('wm-word-err');
     const notes      = document.getElementById('wm-notes').value.trim();
     const saveBtn    = document.getElementById('wf-save-btn');
-    const dupWarning = document.getElementById('wm-dup-warning');
 
     if (!wordSurface) {
       wordErr.textContent = 'Japanese word is required.';
@@ -433,7 +487,6 @@ export default async function renderWordForm(app, cid, did, wid) {
     wordErr.style.display = 'none';
     saveBtn.disabled = true;
     saveBtn.innerHTML = '<span class="spinner-sm"></span>';
-    dupWarning.style.display = 'none';
 
     const definitions = defData.map(d => ({
       english_definition: d.english_definition,
@@ -463,18 +516,11 @@ export default async function renderWordForm(app, cid, did, wid) {
         delete state.decksCache[cid];
         if (result.duplicates?.length) {
           const names = result.duplicates.map(d => `${d.collection_name} › ${d.deck_name}`).join(', ');
-          dupWarning.textContent = `⚠ Also found in: ${names}`;
-          dupWarning.style.display = 'block';
-          saveBtn.disabled = false;
-          saveBtn.textContent = 'Done';
-          saveBtn.onclick = () => {
-            showToast('Word added', 'success');
-            navigate(`#/words/${cid}/${did}`);
-          };
+          showToast(`Word added — also found in: ${names}`, 'success');
         } else {
           showToast('Word added', 'success');
-          navigate(`#/words/${cid}/${did}`);
         }
+        navigate(`#/words/${cid}/${did}`);
       }
     } catch (err) {
       showToast(err.message || 'Failed to save word', 'error');
