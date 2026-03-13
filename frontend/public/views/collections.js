@@ -1,5 +1,6 @@
 import Sortable from 'https://cdn.jsdelivr.net/npm/sortablejs@1.15.3/+esm';
 import { api } from '../api.js';
+import { state } from '../state.js';
 import { navigate, showToast, showModal, closeModal, escapeHtml } from '../utils.js';
 
 export default async function renderCollections(app) {
@@ -31,17 +32,24 @@ export default async function renderCollections(app) {
 
   let collections = [];
 
-  try {
-    collections = await api.get('/collections');
+  const cached = state.collectionsCache;
+  if (cached !== null && cached !== undefined) {
+    collections = cached;
     renderList(collections);
-  } catch (err) {
-    document.getElementById('list').innerHTML = `
-      <div class="empty-state">
-        <div class="empty-state-icon">⚠️</div>
-        <div class="empty-state-title">Failed to load collections</div>
-        <div class="empty-state-desc">Check your connection and try again.</div>
-      </div>`;
-    showToast('Failed to load collections', 'error');
+  } else {
+    try {
+      collections = await api.get('/collections');
+      state.collectionsCache = collections;
+      renderList(collections);
+    } catch (err) {
+      document.getElementById('list').innerHTML = `
+        <div class="empty-state">
+          <div class="empty-state-icon">⚠️</div>
+          <div class="empty-state-title">Failed to load collections</div>
+          <div class="empty-state-desc">Check your connection and try again.</div>
+        </div>`;
+      showToast('Failed to load collections', 'error');
+    }
   }
 
   function renderList(cols) {
@@ -183,10 +191,12 @@ export default async function renderCollections(app) {
           closeModal();
           showToast('Collection updated', 'success');
           const cols = await api.get('/collections');
+          state.collectionsCache = cols;
           collections = cols;
           renderList(cols);
         } else {
           const result = await api.post('/collections', { name, desc });
+          state.collectionsCache = null;
           closeModal();
           showToast('Collection created', 'success');
           navigate(`#/decks/${result.id}`);
@@ -233,6 +243,7 @@ export default async function renderCollections(app) {
         closeModal();
         showToast('Collection deleted', 'success');
         const cols = await api.get('/collections');
+        state.collectionsCache = cols;
         collections = cols;
         renderList(cols);
       } catch {

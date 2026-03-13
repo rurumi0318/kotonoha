@@ -34,12 +34,15 @@ export default async function renderDecks(app, cid) {
   let collectionName = '';
 
   try {
-    // Load collection name and decks in parallel
-    const [collections, fetchedDecks] = await Promise.all([
-      api.get('/collections'),
-      api.get(`/collections/${cid}/decks`),
-    ]);
-    const col = collections.find(c => c.id === cid);
+    let allCollections = state.collectionsCache;
+    let fetchedDecks = state.decksCache[cid] ?? null;
+
+    const fetches = [];
+    if (!allCollections) fetches.push(api.get('/collections').then(r => { allCollections = r; state.collectionsCache = r; }));
+    if (!fetchedDecks)   fetches.push(api.get(`/collections/${cid}/decks`).then(r => { fetchedDecks = r; state.decksCache[cid] = r; }));
+    await Promise.all(fetches);
+
+    const col = allCollections.find(c => c.id === cid);
     collectionName = col?.name || '';
     state.collectionName = collectionName;
     document.getElementById('col-title').textContent = collectionName;
@@ -233,17 +236,19 @@ export default async function renderDecks(app, cid) {
           await api.patch(`/collections/${cid}/decks/${existing.id}`, { name, tag });
           closeModal();
           showToast('Deck updated', 'success');
+          const fresh = await api.get(`/collections/${cid}/decks`);
+          state.decksCache[cid] = fresh;
+          decks = fresh;
+          renderList(fresh);
+          loadAllDeckStats(fresh);
         } else {
           const result = await api.post(`/collections/${cid}/decks`, { name, tag });
+          delete state.decksCache[cid];
+          state.collectionsCache = null;
           closeModal();
           showToast('Deck created', 'success');
           navigate(`#/words/${cid}/${result.id}`);
-          return;
         }
-        const fresh = await api.get(`/collections/${cid}/decks`);
-        decks = fresh;
-        renderList(fresh);
-        loadAllDeckStats(fresh);
       } catch (err) {
         showToast(err.message || 'Failed to save', 'error');
         saveBtn.disabled = false;
@@ -277,9 +282,12 @@ export default async function renderDecks(app, cid) {
       btn.innerHTML = '<span class="spinner-sm"></span>';
       try {
         await api.delete(`/collections/${cid}/decks/${deck.id}`);
+        delete state.decksCache[cid];
+        state.collectionsCache = null;
         closeModal();
         showToast('Deck deleted', 'success');
         const fresh = await api.get(`/collections/${cid}/decks`);
+        state.decksCache[cid] = fresh;
         decks = fresh;
         renderList(fresh);
       } catch {

@@ -10,6 +10,7 @@ import { openWordModal } from './wordModal.js';
 
 export default async function renderWords(app, cid, did) {
   if (!cid || !did) { navigate('#/collections'); return; }
+  const cacheKey = `${cid}/${did}`;
 
   app.innerHTML = `
     <div class="view-layout">
@@ -51,9 +52,10 @@ export default async function renderWords(app, cid, did) {
     cid,
     did,
     onSaved: async () => {
-      delete state.wordsCache[`${cid}/${did}`];
+      delete state.wordsCache[cacheKey];
+      delete state.decksCache[cid];
       const fresh = await api.get(`/collections/${cid}/decks/${did}/words`);
-      state.wordsCache[`${cid}/${did}`] = fresh;
+      state.wordsCache[cacheKey] = fresh;
       words = fresh;
       renderList(fresh);
     },
@@ -62,12 +64,15 @@ export default async function renderWords(app, cid, did) {
   let words = [];
 
   try {
-    // Load deck info and words in parallel
-    const [decks, fetchedWords] = await Promise.all([
-      api.get(`/collections/${cid}/decks`),
-      api.get(`/collections/${cid}/decks/${did}/words`),
-    ]);
-    const deck = decks.find(d => d.id === did);
+    let fetchedDecks = state.decksCache[cid] ?? null;
+    let fetchedWords = state.wordsCache[cacheKey] ?? null;
+
+    const fetches = [];
+    if (!fetchedDecks) fetches.push(api.get(`/collections/${cid}/decks`).then(r => { fetchedDecks = r; state.decksCache[cid] = r; }));
+    if (!fetchedWords) fetches.push(api.get(`/collections/${cid}/decks/${did}/words`).then(r => { fetchedWords = r; state.wordsCache[cacheKey] = r; }));
+    await Promise.all(fetches);
+
+    const deck = fetchedDecks.find(d => d.id === did);
     const deckName = deck?.name || '';
     state.deckName = deckName;
     const colName = state.collectionName || '';
@@ -183,11 +188,11 @@ export default async function renderWords(app, cid, did) {
       btn.innerHTML = '<span class="spinner-sm"></span>';
       try {
         await api.delete(`/collections/${cid}/decks/${did}/words/${word.id}`);
-        delete state.wordsCache[`${cid}/${did}`];
+        delete state.decksCache[cid];
         closeModal();
         showToast('Word deleted', 'success');
         words = words.filter(w => w.id !== word.id);
-        state.wordsCache[`${cid}/${did}`] = words;
+        state.wordsCache[cacheKey] = words;
         renderList(words);
       } catch {
         showToast('Failed to delete', 'error');
