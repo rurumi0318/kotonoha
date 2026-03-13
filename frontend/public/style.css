@@ -949,11 +949,11 @@ body.has-footer .toast-container {
   cursor: pointer;
 }
 
-.wm-lookup-footer {
-  padding: 12px 14px;
+.wm-entry-footer {
+  padding: 10px 14px;
   border-top: 1px solid var(--border);
-  background: var(--surface-el);
-  border-radius: 0 0 var(--radius-sm) var(--radius-sm);
+  display: flex;
+  justify-content: flex-end;
 }
 
 /* kana_hint display */

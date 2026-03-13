@@ -1,3 +1,4 @@
+import Sortable from 'https://cdn.jsdelivr.net/npm/sortablejs@1.15.3/+esm';
 import { api, vocabLookup } from '../api.js';
 import { state } from '../state.js';
 import { escapeHtml, showToast, navigate, showModal, closeModal } from '../utils.js';
@@ -234,9 +235,6 @@ export default async function renderWordForm(app, cid, did, wid) {
     zone.innerHTML = `
       <div class="wm-lookup-results">
         ${lookupResults.map((e, i) => renderEntry(e, i)).join('')}
-        <div class="wm-lookup-footer">
-          <button class="btn-primary wm-apply-btn" id="wm-apply-btn">Apply</button>
-        </div>
       </div>`;
     bindLookupActions();
   }
@@ -268,6 +266,10 @@ export default async function renderWordForm(app, cid, did, wid) {
             </button>` : ''}
         </div>
         ${sensesHtml}
+        ${isSelected ? `
+          <div class="wm-entry-footer">
+            <button class="btn-primary wm-apply-btn" id="wm-apply-btn">Apply</button>
+          </div>` : ''}
       </div>`;
   }
 
@@ -401,6 +403,7 @@ export default async function renderWordForm(app, cid, did, wid) {
     defsContainer.innerHTML = defData.map((def, di) => `
       <div class="form-section" data-def-idx="${di}">
         <div class="form-section-header">
+          ${defData.length > 1 ? `<span class="card-drag" title="Drag to reorder">⠿</span>` : ''}
           <span class="form-section-title">Definition ${di + 1}</span>
           ${defData.length > 1
             ? `<button class="btn-ghost remove-def-btn" data-idx="${di}" style="font-size:0.8rem;padding:2px 8px">✕ Remove</button>`
@@ -459,6 +462,20 @@ export default async function renderWordForm(app, cid, did, wid) {
     defsContainer.querySelectorAll('.sent-en').forEach(inp => {
       inp.oninput = () => { defData[Number(inp.dataset.def)].sentences[Number(inp.dataset.sent)].en = inp.value; };
     });
+
+    if (defData.length > 1) {
+      Sortable.create(defsContainer, {
+        handle: '.card-drag',
+        animation: 150,
+        ghostClass: 'sortable-ghost',
+        chosenClass: 'sortable-chosen',
+        onEnd(evt) {
+          const [moved] = defData.splice(evt.oldIndex, 1);
+          defData.splice(evt.newIndex, 0, moved);
+          renderDefs();
+        },
+      });
+    }
   }
 
   renderDefs();
