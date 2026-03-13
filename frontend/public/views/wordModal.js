@@ -1,6 +1,6 @@
 import { api, vocabLookup } from '../api.js';
 import { state } from '../state.js';
-import { escapeHtml, showToast, navigate } from '../utils.js';
+import { escapeHtml, showToast, navigate, showModal, closeModal } from '../utils.js';
 
 export default async function renderWordForm(app, cid, did, wid) {
   if (!cid || !did) { navigate('#/collections'); return; }
@@ -109,18 +109,37 @@ export default async function renderWordForm(app, cid, did, wid) {
   document.getElementById('wf-cancel-btn').onclick = () => navigate(backHash);
 
   if (isEdit) {
-    document.getElementById('wf-delete-btn').onclick = async () => {
-      const deleteBtn = document.getElementById('wf-delete-btn');
-      deleteBtn.disabled = true;
-      try {
-        await api.delete(`/collections/${cid}/decks/${did}/words/${existing.id}`);
-        delete state.wordsCache[cacheKey];
-        showToast('Word deleted', 'success');
-        navigate(`#/words/${cid}/${did}`);
-      } catch {
-        showToast('Failed to delete word', 'error');
-        deleteBtn.disabled = false;
-      }
+    document.getElementById('wf-delete-btn').onclick = () => {
+      const surface = escapeHtml(existing.word?.surface || '');
+      showModal(`
+        <div class="modal-header">
+          <div class="modal-title">Delete word?</div>
+        </div>
+        <div class="modal-body">
+          <p>Delete "<strong lang="ja">${surface}</strong>"? This cannot be undone.</p>
+        </div>
+        <div class="modal-footer">
+          <button class="btn-secondary" id="modal-cancel">Cancel</button>
+          <button class="btn-danger" id="modal-confirm">Delete</button>
+        </div>
+      `);
+
+      document.getElementById('modal-cancel').onclick = closeModal;
+      document.getElementById('modal-confirm').onclick = async () => {
+        const btn = document.getElementById('modal-confirm');
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-sm"></span>';
+        try {
+          await api.delete(`/collections/${cid}/decks/${did}/words/${existing.id}`);
+          delete state.wordsCache[cacheKey];
+          closeModal();
+          showToast('Word deleted', 'success');
+          navigate(`#/words/${cid}/${did}`);
+        } catch {
+          showToast('Failed to delete word', 'error');
+          closeModal();
+        }
+      };
     };
   }
 

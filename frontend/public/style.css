@@ -1036,15 +1036,15 @@ body.has-footer .toast-container {
   --accent-h:   #f0a870;
 }
 
-[data-theme="forest"] {
-  --bg:         #0a110d;
-  --surface:    #131e16;
-  --surface-el: #1b2a1f;
-  --border:     #253828;
-  --text-1:     #e8f5ec;
-  --text-2:     #7da888;
-  --accent:     #4ade80;
-  --accent-h:   #6ee89a;
+[data-theme="slate"] {
+  --bg:         #111214;
+  --surface:    #1b1d20;
+  --surface-el: #252729;
+  --border:     #363840;
+  --text-1:     #e2e4e8;
+  --text-2:     #888e99;
+  --accent:     #7b8fd8;
+  --accent-h:   #95a3e2;
 }
 
 [data-theme="mist"] {

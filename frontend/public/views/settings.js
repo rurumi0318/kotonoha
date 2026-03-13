@@ -6,7 +6,7 @@ import { getPreferences, updatePreferences } from '../api.js';
 const THEMES = [
   { id: 'midnight', name: 'Midnight', bg: '#0f1117', surface: '#1a1d27', accent: '#6c6fff', text: '#eef0ff' },
   { id: 'amber',    name: 'Amber',    bg: '#110f0a', surface: '#1e1912', accent: '#e8924a', text: '#fdf4e7' },
-  { id: 'forest',   name: 'Forest',   bg: '#0a110d', surface: '#131e16', accent: '#4ade80', text: '#e8f5ec' },
+  { id: 'slate',    name: 'Slate',    bg: '#111214', surface: '#1b1d20', accent: '#7b8fd8', text: '#e2e4e8' },
   { id: 'mist',     name: 'Mist',     bg: '#f0f2f8', surface: '#ffffff', accent: '#5c5fef', text: '#1a1d30' },
 ];
 
@@ -37,9 +37,8 @@ export default async function renderSettings(app) {
   app.innerHTML = `
     <div class="view-layout">
       <header class="app-header">
-        <button class="btn-back" id="back-btn">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
-          Back
+        <button class="btn-back" id="back-btn" title="Back" aria-label="Back">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
         </button>
         <div class="header-title">Settings</div>
       </header>
