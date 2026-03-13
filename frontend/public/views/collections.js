@@ -7,7 +7,7 @@ export default async function renderCollections(app) {
   app.innerHTML = `
     <div class="view-layout">
       <header class="app-header">
-        <span class="app-logo">言の葉</span>
+        <span class="app-logo" id="app-logo">言の葉</span>
         <div class="header-spacer"></div>
         <button class="btn-icon" id="settings-btn" title="Settings" aria-label="Settings">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -27,6 +27,7 @@ export default async function renderCollections(app) {
     </div>
   `;
 
+  document.getElementById('app-logo').onclick = () => location.reload();
   document.getElementById('settings-btn').onclick = () => navigate('#/settings');
   document.getElementById('new-btn').onclick = () => openCreateModal(null);
 

@@ -220,7 +220,7 @@ export function openWordModal({ mode, existing, cid, did, onSaved, onDeleted }) 
       ? `<div class="wm-examples">
           ${sense.examples.map((ex, xi) => `
             <label class="wm-example">
-              <input type="checkbox" class="wm-example-check"
+              <input type="checkbox" class="wm-example-check" checked
                 data-entry-idx="${entryIdx}"
                 data-sense-no="${sense.sense_no}"
                 data-example-idx="${xi}">
