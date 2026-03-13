@@ -5,5 +5,4 @@ firebase-admin
 fugashi
 ipadic
 jamdict
-jamdict-data
 fsrs

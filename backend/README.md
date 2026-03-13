@@ -31,12 +31,14 @@ backend/
 │   ├── vocab_service.py    # jamdict + example attachment + async translation
 │   └── translator.py       # Placeholder TranslatorService (translate_batch)
 ├── data/
-│   └── examples.db       # Generated SQLite database (gitignored — see below)
+│   ├── jamdict.db        # Compiled JMDict database (gitignored — see below)
+│   └── examples.db       # Compiled example sentence database (gitignored — see below)
 └── tools/
-    └── build_example_db.py  # One-time script to build examples.db
+    ├── build_jamdict_db.py  # One-time script to build jamdict.db from JMdict_e
+    └── build_example_db.py  # One-time script to build examples.db from examples.utf
 ```
 
-See [VOCAB_LOOKUP.md](./VOCAB_LOOKUP.md) for the vocabulary lookup system, including how to build the SQLite database.
+See [VOCAB_LOOKUP.md](./VOCAB_LOOKUP.md) for the vocabulary lookup system, including how to build both databases.
 
 ## Authentication
 

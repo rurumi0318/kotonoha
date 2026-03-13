@@ -3,18 +3,21 @@ Vocabulary lookup: jamdict dictionary entries + linked example sentences,
 with async translation of English text.
 """
 
+from pathlib import Path
+
 from jamdict import Jamdict
 
 from services.example_service import get_examples
 from services.translator import TranslatorService
 
+_DB_PATH = Path(__file__).parent.parent / "data" / "jamdict.db"
 _jam: Jamdict | None = None
 
 
 def _get_jam() -> Jamdict:
     global _jam
     if _jam is None:
-        _jam = Jamdict()
+        _jam = Jamdict(db_file=str(_DB_PATH), auto_config=False)
     return _jam
 
 

@@ -42,8 +42,7 @@ def get_examples(
 
     Tiered lookup — stops at the first tier that returns results:
       1. ent_seq + sense_no   (exact sense match)
-      2. ent_seq only         (any sense for this entry)
-      3. headword + sense_no  (indexed text match, specific sense)
+      2. headword + sense_no  (indexed text match, specific sense)
 
     Only EDRDG-indexed links are used. Words with no indexed examples
     return an empty list — consistent with how Jisho handles the same data.
@@ -61,13 +60,6 @@ def get_examples(
             " WHERE wl.ent_seq = ? AND wl.sense_no = ?"
             " ORDER BY wl.is_checked DESC LIMIT ?",
             (ent_seq, sense_no, limit),
-        ))
-        tiers.append((
-            "SELECT s.jp_text, s.en_text, s.segments"
-            " FROM word_links wl JOIN sentences s ON s.id = wl.sentence_id"
-            " WHERE wl.ent_seq = ?"
-            " ORDER BY wl.is_checked DESC LIMIT ?",
-            (ent_seq, limit),
         ))
 
     if headword is not None:

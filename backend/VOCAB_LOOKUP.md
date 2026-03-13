@@ -53,34 +53,35 @@ The database is 71.6 MB — well within Cloud Run's limits.
 
 The example sentences come from the **EDRDG** (Electronic Dictionary Research and Development Group), specifically the `examples.utf` file from the Tanaka Corpus / Tatoeba project. This corpus has been manually curated and linked to JMDict dictionary entries at the sense level.
 
-Dictionary lookups use **jamdict**, a Python library that wraps the JMDict and KanjiDic2 databases.
+Dictionary lookups use **jamdict**, a Python library that wraps JMDict. The JMDict data is **not** bundled via `jamdict-data` — instead, `JMdict_e` is downloaded directly from EDRDG and compiled into `data/jamdict.db`. This ensures the dictionary's sense numbering matches the sense numbers in `examples.utf`.
 
-#### Downloading `examples.utf`
+#### Downloading source files
 
-The only file needed is `examples.utf`. Download the compressed version and extract it:
-
-| File | URL |
-|---|---|
-| `examples.utf.gz` | http://ftp.edrdg.org/pub/Nihongo/examples.utf.gz |
-| EDRDG file index | http://ftp.edrdg.org/pub/Nihongo/ |
+Both files are downloaded from the EDRDG FTP server and must match each other's JMDict version:
 
 ```bash
 # From backend/data/
-curl -O http://ftp.edrdg.org/pub/Nihongo/examples.utf.gz
+curl -O https://ftp.edrdg.org/pub/Nihongo/JMdict_e.gz
+gunzip JMdict_e.gz
+
+curl -O https://ftp.edrdg.org/pub/Nihongo/examples.utf.gz
 gunzip examples.utf.gz
 ```
 
-For a detailed explanation of the file format, see the [EDRDG Sentence-Dictionary Linking page](https://www.edrdg.org/wiki/Sentence-Dictionary_Linking.html). It documents the A/B line structure and all index element symbols (`[NN]`, `(#ent_seq)`, `~`, `{surface}`) that the build script parses.
+For a detailed explanation of the `examples.utf` format, see the [EDRDG Sentence-Dictionary Linking page](https://www.edrdg.org/wiki/Sentence-Dictionary_Linking.html). It documents the A/B line structure and all index element symbols (`[NN]`, `(#ent_seq)`, `~`, `{surface}`) that the build script parses.
 
 ### File layout
 
 ```
 backend/
 ├── data/
-│   ├── examples.utf          # Raw EDRDG source file (not committed)
-│   └── examples.db           # Generated SQLite database (not committed)
+│   ├── JMdict_e              # Raw JMDict XML (not committed)
+│   ├── jamdict.db            # Compiled JMDict database (not committed)
+│   ├── examples.utf          # Raw EDRDG example sentences (not committed)
+│   └── examples.db           # Compiled example sentence database (not committed)
 ├── tools/
-│   └── build_example_db.py   # One-time build script
+│   ├── build_jamdict_db.py   # Compiles JMdict_e → jamdict.db
+│   └── build_example_db.py   # Compiles examples.utf → examples.db
 └── services/
     ├── example_service.py    # SQLite read-only singleton
     └── vocab_service.py      # jamdict + example attachment
@@ -143,23 +144,21 @@ Only tokens with a `[NN]` sense marker are written to `word_links`. Tokens witho
 
 ---
 
-## Building the Database
+## Building the Databases
 
-Run this once locally before building the Docker image. Requires the Python venv with the backend dependencies installed.
+Run both scripts once locally before building the Docker image. Requires the Python venv with the backend dependencies installed.
 
 ```bash
 cd backend
-python tools/build_example_db.py
+python tools/build_jamdict_db.py   # data/JMdict_e → data/jamdict.db
+python tools/build_example_db.py   # data/examples.utf → data/examples.db
 ```
 
-**Input:** `data/examples.utf`
-**Output:** `data/examples.db`
+All four source/output files are gitignored. When building the Docker image, `COPY . .` picks up `data/jamdict.db` and `data/examples.db` automatically.
 
-The script processes ~148k sentence pairs and takes a few minutes. Progress is printed every 5,000 sentences.
+`build_example_db.py` processes ~148k sentence pairs and takes a few minutes. Progress is printed every 5,000 sentences.
 
-Both files are gitignored. When building the Docker image, `COPY . .` in the Dockerfile picks up `data/examples.db` automatically.
-
-> **If you update `examples.utf`**, delete the old `examples.db` and re-run the script, then rebuild and redeploy the container.
+> **If you update either source file**, delete both generated `.db` files and re-run both scripts, then rebuild and redeploy the container. The two source files must be from the same JMDict release — downloading them together from the EDRDG server at the same time is sufficient.
 
 ---
 
