@@ -30,7 +30,7 @@ All visual values come from CSS custom properties defined in `:root`. Never hard
 | `--warning`   | `#fbbf24` | Overdue / caution states           |
 | `--danger`    | `#f87171` | Destructive actions, errors        |
 
-Additional themes (`amber`, `forest`, `mist`) override the same tokens so all components automatically adapt.
+Additional themes (`amber`, `slate`, `mist`) override the same tokens so all components automatically adapt.
 
 ### Radii
 
@@ -217,6 +217,14 @@ Bottom-centered, auto-dismiss after 3s. Fade in/out with `opacity` + `translateY
 ### Toggle switch
 
 Use `.toggle-switch` + `.on` for boolean settings. Always pair with a label and sub-label. Make the entire row (`.pause-toggle`) the click target, not just the switch knob. Include `role="button"` and `aria-pressed` for accessibility.
+
+### App footer
+
+Some views (Word detail, word form) have a persistent action bar at the bottom. Use `.app-footer` as a `<footer>` sibling of `.app-main` inside `.view-layout`. Place a single `.btn-primary` or `.btn-secondary` inside it with the `.app-footer-btn` class (full-width, max 360px).
+
+Add `body.has-footer` when the footer is visible so toasts shift up above it. Remove the class on navigation away (the router does this automatically).
+
+Do not use the footer for navigation or secondary actions — one button maximum.
 
 ### Forms
 
