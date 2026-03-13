@@ -81,9 +81,7 @@ export default async function renderWordForm(app, cid, did, wid) {
         <div id="wm-lookup-zone"></div>
 
         <div class="wm-form-zone">
-          <div style="margin-bottom:8px">
-            <span style="font-size:0.78rem;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-2)">Your Definitions</span>
-          </div>
+          <label class="form-label">Your Definitions</label>
           <div id="wm-defs"></div>
           <button class="btn-ghost" id="wm-add-def" style="width:100%;margin-top:4px">+ Add Definition Manually</button>
 

@@ -43,20 +43,29 @@ export default async function renderWord(app, cid, did, wid) {
           </div>
         </main>
         <footer class="app-footer">
-          <button class="btn-secondary app-footer-btn" id="details-btn" title="Show details">Show Details</button>
+          <button class="btn-secondary app-footer-btn" id="details-btn" title="Show details">Details</button>
         </footer>
       </div>
     `;
 
     document.getElementById('back-btn').onclick = () => navigate(`#/words/${cid}/${did}`);
     document.getElementById('furigana-btn').onclick = () => setFuriganaEnabled(!getFuriganaEnabled());
-    document.getElementById('details-btn').onclick = () => showToast('Coming soon', 'success');
+    document.getElementById('details-btn').onclick = () => {
+      const panels = document.getElementById('word-panels');
+      const btn = document.getElementById('details-btn');
+      if (!panels) return;
+      const entering = panels.classList.toggle('details-active');
+      btn.textContent = entering ? 'Overview' : 'Details';
+      if (entering) document.getElementById('word-panel-details').scrollTop = 0;
+      else          document.getElementById('word-panel-overview').scrollTop = 0;
+    };
 
     // ── Swipe navigation (mobile) — set up once per deck view ─────────
     const contentEl = document.getElementById('word-content');
     let swipeStartX = 0;
     contentEl.addEventListener('touchstart', (e) => { swipeStartX = e.touches[0].clientX; }, { passive: true });
     contentEl.addEventListener('touchend', (e) => {
+      if (document.getElementById('word-panels')?.classList.contains('details-active')) return;
       const delta = e.changedTouches[0].clientX - swipeStartX;
       if (Math.abs(delta) < 50) return;
       const currentWid = contentEl.dataset.currentWid;
@@ -100,11 +109,23 @@ export default async function renderWord(app, cid, did, wid) {
 
   function renderWordDetail(w) {
     app.querySelector('.app-main').scrollTop = 0;
+    // Reset panel state when navigating to a new word
+    document.getElementById('word-panels')?.classList.remove('details-active');
+    const detailsBtn = document.getElementById('details-btn');
+    if (detailsBtn) detailsBtn.textContent = 'Details';
+
     const idx      = wordsList.findIndex(ww => ww.id === w.id);
     const hasPrev  = idx > 0;
     const hasNext  = idx < wordsList.length - 1;
     const fsrs     = w.fsrs_data || {};
     const deckName = state.deckName || '';
+
+    const dotClass = fsrs.state === 2 ? 'review'
+                   : fsrs.state === 3 ? 'relearning'
+                   : fsrs.state === 1 ? 'learning'
+                   : 'new';
+    const firstDef      = w.definitions?.[0] ?? null;
+    const firstSentence = firstDef?.sentences?.[0] ?? null;
 
     // Populate fixed header: breadcrumb text + nav controls
     document.getElementById('word-header-title').innerHTML = `
@@ -122,71 +143,89 @@ export default async function renderWord(app, cid, did, wid) {
     `;
 
     document.getElementById('word-content').innerHTML = `
-      <div class="word-detail">
-        <div class="word-surface-lg" lang="ja">${renderFurigana(w.word)}</div>
-        ${w.kana_hint ? `<div class="word-kana-hint-lg" lang="ja">${escapeHtml(w.kana_hint)}</div>` : ''}
+      <div class="word-panels" id="word-panels">
 
-        <!-- Definitions -->
-        <div class="word-section">
-          <div class="word-section-title">Definitions</div>
-          ${(w.definitions || []).map((def, i) => `
-            <div class="definition-card">
-              <div class="definition-english">${i + 1}. ${escapeHtml(def.english_definition)}</div>
-              ${(def.sentences || []).map(s => `
-                <div class="sentence-item">
-                  <div class="sentence-ja" lang="ja">${renderFurigana(s)}</div>
-                  ${s.en ? `<div class="sentence-en">${escapeHtml(s.en)}</div>` : ''}
+        <!-- Overview panel -->
+        <div class="word-panel word-panel--overview" id="word-panel-overview">
+          <div class="word-hero">
+            <div class="word-surface-lg" lang="ja">${renderFurigana(w.word)}</div>
+            ${w.kana_hint ? `<div class="word-kana-hint-lg" lang="ja">${escapeHtml(w.kana_hint)}</div>` : ''}
+            <div class="word-state-dot word-state-dot--${dotClass}"></div>
+          </div>
+          <div class="word-primary">
+            ${firstDef ? `
+              <div class="word-primary-def">${escapeHtml(firstDef.english_definition)}</div>
+              ${firstSentence ? `
+                <div class="word-primary-sentence">
+                  <div class="sentence-ja" lang="ja">${renderFurigana(firstSentence)}</div>
+                  ${firstSentence.en ? `<div class="sentence-en">${escapeHtml(firstSentence.en)}</div>` : ''}
                 </div>
-              `).join('')}
-            </div>
-          `).join('')}
-          ${!w.definitions?.length ? '<p class="text-secondary text-sm">No definitions yet.</p>' : ''}
+              ` : ''}
+            ` : `<div class="word-primary-empty">No definitions yet.</div>`}
+          </div>
         </div>
 
-        <!-- Notes -->
-        <div class="word-section">
-          <div class="word-section-title">Notes</div>
-          <div class="notes-text">${escapeHtml(w.user_notes || '') || '<span class="text-secondary">—</span>'}</div>
-        </div>
+        <!-- Details panel -->
+        <div class="word-panel word-panel--details" id="word-panel-details">
+          <div class="word-section" style="margin-top:0">
+            <div class="word-section-title">Definitions</div>
+            ${(w.definitions || []).map((def, i) => `
+              <div class="definition-card">
+                <div class="definition-english">${i + 1}. ${escapeHtml(def.english_definition)}</div>
+                ${(def.sentences || []).map(s => `
+                  <div class="sentence-item">
+                    <div class="sentence-ja" lang="ja">${renderFurigana(s)}</div>
+                    ${s.en ? `<div class="sentence-en">${escapeHtml(s.en)}</div>` : ''}
+                  </div>
+                `).join('')}
+              </div>
+            `).join('')}
+            ${!w.definitions?.length ? '<p class="text-secondary text-sm">No definitions yet.</p>' : ''}
+          </div>
 
-        <!-- FSRS -->
-        <div class="word-section">
-          <div class="word-section-title">Progress</div>
-          <div class="fsrs-grid">
-            <div class="fsrs-cell">
-              <div class="fsrs-cell-label">State</div>
-              <div class="fsrs-cell-value">${escapeHtml(fsrsStateLabel(fsrs.state))}</div>
+          <div class="word-section">
+            <div class="word-section-title">Notes</div>
+            <div class="notes-text">${escapeHtml(w.user_notes || '') || '<span class="text-secondary">—</span>'}</div>
+          </div>
+
+          <div class="word-section">
+            <div class="word-section-title">Progress</div>
+            <div class="fsrs-grid">
+              <div class="fsrs-cell">
+                <div class="fsrs-cell-label">State</div>
+                <div class="fsrs-cell-value">${escapeHtml(fsrsStateLabel(fsrs.state))}</div>
+              </div>
+              <div class="fsrs-cell">
+                <div class="fsrs-cell-label">Due</div>
+                <div class="fsrs-cell-value">${formatDate(fsrs.due_date)}</div>
+              </div>
+              <div class="fsrs-cell">
+                <div class="fsrs-cell-label">Last Review</div>
+                <div class="fsrs-cell-value">${formatDateFull(fsrs.last_review)}</div>
+              </div>
+              <div class="fsrs-cell">
+                <div class="fsrs-cell-label">Stability</div>
+                <div class="fsrs-cell-value">${fsrs.stability != null ? round2(fsrs.stability) + 'd' : '—'}</div>
+              </div>
+              <div class="fsrs-cell">
+                <div class="fsrs-cell-label">Difficulty</div>
+                <div class="fsrs-cell-value">${fsrs.difficulty != null ? round2(fsrs.difficulty) : '—'}</div>
+              </div>
             </div>
-            <div class="fsrs-cell">
-              <div class="fsrs-cell-label">Due</div>
-              <div class="fsrs-cell-value">${formatDate(fsrs.due_date)}</div>
-            </div>
-            <div class="fsrs-cell">
-              <div class="fsrs-cell-label">Last Review</div>
-              <div class="fsrs-cell-value">${formatDateFull(fsrs.last_review)}</div>
-            </div>
-            <div class="fsrs-cell">
-              <div class="fsrs-cell-label">Stability</div>
-              <div class="fsrs-cell-value">${fsrs.stability != null ? round2(fsrs.stability) + 'd' : '—'}</div>
-            </div>
-            <div class="fsrs-cell">
-              <div class="fsrs-cell-label">Difficulty</div>
-              <div class="fsrs-cell-value">${fsrs.difficulty != null ? round2(fsrs.difficulty) : '—'}</div>
+          </div>
+
+          <div class="word-section">
+            <div class="word-section-title">Status</div>
+            <div class="pause-toggle" id="pause-toggle" role="button" tabindex="0" aria-pressed="${w.is_paused}">
+              <div>
+                <div class="pause-toggle-label">Paused</div>
+                <div class="pause-toggle-sub">Paused words are excluded from reviews.</div>
+              </div>
+              <div class="toggle-switch ${w.is_paused ? 'on' : ''}" id="pause-switch"></div>
             </div>
           </div>
         </div>
 
-        <!-- Pause toggle -->
-        <div class="word-section">
-          <div class="word-section-title">Status</div>
-          <div class="pause-toggle" id="pause-toggle" role="button" tabindex="0" aria-pressed="${w.is_paused}">
-            <div>
-              <div class="pause-toggle-label">Paused</div>
-              <div class="pause-toggle-sub">Paused words are excluded from reviews.</div>
-            </div>
-            <div class="toggle-switch ${w.is_paused ? 'on' : ''}" id="pause-switch"></div>
-          </div>
-        </div>
       </div>
     `;
 

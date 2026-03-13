@@ -377,13 +377,81 @@ ruby rt {
   max-width: 100%;
 }
 
+.word-hero {
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+.word-state-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  margin: 8px auto 0;
+}
+.word-state-dot--new        { background: var(--border); }
+.word-state-dot--learning   { background: var(--accent); }
+.word-state-dot--review     { background: var(--success); }
+.word-state-dot--relearning { background: var(--danger); }
+
+.word-primary {
+  padding-bottom: 4px;
+}
+.word-primary-def {
+  font-size: 1.3rem;
+  color: var(--text-1);
+  margin-bottom: 12px;
+  text-align: center;
+}
+.word-primary-sentence {
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+.word-primary-empty {
+  font-size: 1.1rem;
+  color: var(--text-2);
+}
+
+/* ── Word view: panel layout ───────────────────────────────────── */
+.view-layout[data-word-cid] > .app-main {
+  overflow: hidden;
+  padding: 0;
+}
+.view-layout[data-word-cid] #word-content {
+  height: 100%;
+}
+
+.word-panels {
+  display: flex;
+  flex-direction: row;
+  height: 100%;
+  will-change: transform;
+  transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.word-panels.details-active {
+  transform: translateX(-100%);
+}
+
+.word-panel {
+  flex: 0 0 100%;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  padding: 20px 16px 40px;
+}
+.word-panel::-webkit-scrollbar { display: none; }
+
+.word-panel--overview {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
 .word-surface-lg {
   font-family: var(--font-ja);
   font-size: 3.5rem;
   line-height: 2;
   text-align: center;
   color: var(--text-1);
-  margin-bottom: 8px;
 }
 
 .word-section {
@@ -1283,6 +1351,7 @@ body.furigana-off .furigana-btn-icon {
 @media (min-width: 600px) {
   html, body { font-size: 21px; }
   .app-main { padding: 24px 24px 48px; }
+  .word-panel { padding: 24px 24px 48px; }
   .card-list { gap: 16px; }
   .word-surface-lg { font-size: 4rem; }
   .badge { font-size: 0.88rem; }
@@ -1299,6 +1368,7 @@ body.furigana-off .furigana-btn-icon {
   }
   .app-header { padding: 0 28px; }
   .app-main { padding: 36px 40px 72px; }
+  .word-panel { padding: 36px 40px 72px; }
   .word-surface-lg { font-size: 4.5rem; }
   .badge { font-size: 0.88rem; }
   .word-section-title { font-size: 0.9rem; }
