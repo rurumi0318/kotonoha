@@ -38,8 +38,9 @@ provide one natural, common example sentence in Japanese and its English transla
 
 Rules:
 - The example sentence must naturally use the word with the given reading and meaning.
-- Keep sentences simple and natural (textbook-quality).
-- If a word is too rare, archaic, or you cannot find a good example, return empty strings for both fields.
+- Match the sentence complexity to the word's JLPT level: N5/N4 sentences should be \
+short and simple (beginner-friendly vocabulary and grammar); N3 sentences moderately \
+complex; N2/N1 sentences can use advanced vocabulary and grammar structures.
 - Respond ONLY with a valid JSON array. No markdown, no explanation.
 - Each object in the response must include the original "idseq" and "word_key" fields unchanged.
 
