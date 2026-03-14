@@ -6,3 +6,4 @@ fugashi
 ipadic
 jamdict
 fsrs
+google-genai

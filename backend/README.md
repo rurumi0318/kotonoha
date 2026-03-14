@@ -34,8 +34,10 @@ backend/
 │   ├── jamdict.db        # Compiled JMDict database (gitignored — see below)
 │   └── examples.db       # Compiled example sentence database (gitignored — see below)
 └── tools/
-    ├── build_jamdict_db.py  # One-time script to build jamdict.db from JMdict_e
-    └── build_example_db.py  # One-time script to build examples.db from examples.utf
+    ├── build_jamdict_db.py       # One-time script to build jamdict.db from JMdict_e
+    ├── build_example_db.py       # One-time script to build examples.db from examples.utf
+    ├── enrich_jlpt.py            # Enriches JLPT word lists with POS/definition from jamdict
+    └── generate_jlpt_examples.py # Generates example sentences for JLPT words via Gemini API
 ```
 
 See [VOCAB_LOOKUP.md](./VOCAB_LOOKUP.md) for the vocabulary lookup system, including how to build both databases.
@@ -203,3 +205,120 @@ Requires a composite Firestore index: `(user_id ASC, is_paused ASC, fsrs_data.du
 | GET | `/vocab/lookup?q={text}` | Dictionary lookup with senses and example sentences |
 
 See [VOCAB_LOOKUP.md](./VOCAB_LOOKUP.md) for full details.
+
+## JLPT Word Data Pipeline
+
+A two-step local pipeline that builds enriched JLPT word lists with POS, definitions, and AI-generated example sentences. All output files are gitignored (under `backend/data/`).
+
+### Source files
+
+```
+backend/data/jlpt/
+  term_meta_bank_1.json   # N1 words (~3200)
+  term_meta_bank_2.json   # N2 words (~1900)
+  term_meta_bank_3.json   # N3 words (~1700)
+  term_meta_bank_4.json   # N4 words (~640)
+  term_meta_bank_5.json   # N5 words (~700)
+```
+
+Each entry format: `[word, "freq", {"reading": "...", "frequency": {...}}]`
+
+---
+
+### Step 1 — Enrich with POS and definition (`enrich_jlpt.py`)
+
+Uses the local `jamdict.db` to look up each word and extract its primary part-of-speech and English definition. No internet connection or API key required.
+
+```powershell
+cd backend
+.venv\Scripts\python tools\enrich_jlpt.py
+```
+
+**Output** — one file per source, e.g. `term_meta_bank_1_enriched.json`:
+
+```json
+[
+  {
+    "word": "人気",
+    "reading": "にんき",
+    "idseq": 1367010,
+    "pos": "noun (common) (futsuumeishi)",
+    "definition": "popularity, public favor"
+  },
+  ...
+]
+```
+
+The script matches entries by `reading` against `kana_forms` in jamdict, so homographs like `人気(にんき)` and `人気(ひとけ)` each map to the correct dictionary entry. `idseq` is the JMdict entry ID, used as a stable key in subsequent steps. Entries with no jamdict match get `"idseq": null`.
+
+---
+
+### Step 2 — Generate example sentences (`generate_jlpt_examples.py`)
+
+Calls the Gemini API to generate one natural example sentence (Japanese + English translation) per word. Requires a Google AI Studio API key.
+
+#### Prerequisites
+
+```powershell
+# Set your API key for the current terminal session (never committed to git)
+$env:GEMINI_API_KEY = "your_key_here"
+```
+
+The script reads `GEMINI_API_KEY` from the environment and exits with an error if it is missing.
+
+#### Running
+
+```powershell
+cd backend
+
+# Process all 5 files (default: 100 words/batch, 1 API call/min)
+.venv\Scripts\python tools\generate_jlpt_examples.py
+
+# Process a single file (useful for testing — file 5 is smallest at ~700 words)
+.venv\Scripts\python tools\generate_jlpt_examples.py --file 5
+
+# Faster if you have a paid API key
+.venv\Scripts\python tools\generate_jlpt_examples.py --batch-size 100 --rpm 15
+```
+
+**Options:**
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--batch-size N` | 100 | Words sent per API call |
+| `--rpm N` | 1 | API calls per minute (free tier limit: 15 RPM) |
+| `--file N` | all | Process only file N (1–5) |
+
+#### Progress and resuming
+
+After each successful batch the script writes a progress file:
+
+```
+backend/data/jlpt/term_meta_bank_{n}_examples_progress.json
+```
+
+If the script is interrupted (Ctrl+C, quota error, network issue), just re-run the same command — it skips completed batches and continues from where it stopped. The progress file is deleted automatically once all batches for a file are done.
+
+#### Output — `term_meta_bank_{n}_examples.json`
+
+```json
+[
+  {
+    "idseq": 1367010,
+    "word": "人気",
+    "reading": "にんき",
+    "example_jp": "このバンドは若者の間でとても人気があります。",
+    "example_en": "This band is very popular among young people."
+  },
+  {
+    "idseq": null,
+    "word": "嚙る",
+    "reading": "かじる",
+    "example_jp": "",
+    "example_en": ""
+  },
+  ...
+]
+```
+
+`example_jp` and `example_en` are empty strings when the AI cannot find a suitable example (rare or archaic words). Results are mapped back to source entries using `idseq` as the primary key, with `word:reading` as a fallback for the one `null`-idseq entry.
