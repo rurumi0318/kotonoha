@@ -6,6 +6,7 @@ import {
   fsrsStateLabel, formatDate, formatDateFull, round2,
   getFuriganaEnabled, setFuriganaEnabled,
 } from '../utils.js';
+import { audioService, getAutoPlay } from '../audio.js';
 
 export default async function renderWord(app, cid, did, wid) {
   if (!cid || !did || !wid) { navigate('#/collections'); return; }
@@ -103,9 +104,16 @@ export default async function renderWord(app, cid, did, wid) {
     const idx = wordsList.findIndex(w => w.id === wid);
     if (e.key === 'ArrowLeft'  && idx > 0)                  navigate(`#/word/${cid}/${did}/${wordsList[idx - 1].id}`);
     if (e.key === 'ArrowRight' && idx < wordsList.length - 1) navigate(`#/word/${cid}/${did}/${wordsList[idx + 1].id}`);
+    if (e.key === ' ' && word) {
+      e.preventDefault();
+      audioService.speak(word.word.surface, cid, document.querySelector('.word-hero'));
+    }
   }
   document.addEventListener('keydown', handleKey);
-  window.addEventListener('hashchange', () => document.removeEventListener('keydown', handleKey), { once: true });
+  window.addEventListener('hashchange', () => {
+    document.removeEventListener('keydown', handleKey);
+    audioService.cancel();
+  }, { once: true });
 
   function renderWordDetail(w) {
     app.querySelector('.app-main').scrollTop = 0;
@@ -156,7 +164,7 @@ export default async function renderWord(app, cid, did, wid) {
             ${firstDef ? `
               <div class="word-primary-def">${escapeHtml(firstDef.english_definition)}</div>
               ${firstSentence ? `
-                <div class="word-primary-sentence">
+                <div class="word-primary-sentence" data-surface="${escapeHtml(firstSentence.surface)}">
                   <div class="sentence-ja" lang="ja">${renderFurigana(firstSentence)}</div>
                   ${firstSentence.en ? `<div class="sentence-en">${escapeHtml(firstSentence.en)}</div>` : ''}
                 </div>
@@ -173,7 +181,7 @@ export default async function renderWord(app, cid, did, wid) {
               <div class="definition-card">
                 <div class="definition-english">${i + 1}. ${escapeHtml(def.english_definition)}</div>
                 ${(def.sentences || []).map(s => `
-                  <div class="sentence-item">
+                  <div class="sentence-item" data-surface="${escapeHtml(s.surface)}">
                     <div class="sentence-ja" lang="ja">${renderFurigana(s)}</div>
                     ${s.en ? `<div class="sentence-en">${escapeHtml(s.en)}</div>` : ''}
                   </div>
@@ -259,5 +267,26 @@ export default async function renderWord(app, cid, did, wid) {
 
     // Edit button
     document.getElementById('edit-btn').onclick = () => navigate(`#/edit-word/${cid}/${did}/${w.id}`);
+
+    // ── Audio ──────────────────────────────────────────────────────
+    if (audioService.isAvailable()) {
+      const heroEl = document.querySelector('.word-hero');
+      heroEl?.addEventListener('click', () => audioService.speak(w.word.surface, cid, heroEl));
+
+      if (firstSentence) {
+        const primaryEl = document.querySelector('.word-primary');
+        primaryEl?.classList.add('audio-enabled');
+        primaryEl?.addEventListener('click', () => audioService.speak(firstSentence.surface, cid, primaryEl));
+      }
+
+      document.querySelectorAll('.sentence-item').forEach(el => {
+        el.addEventListener('click', () => {
+          const surface = el.dataset.surface;
+          if (surface) audioService.speak(surface, cid, el);
+        });
+      });
+
+      if (getAutoPlay()) audioService.speak(w.word.surface, cid, heroEl);
+    }
   }
 }

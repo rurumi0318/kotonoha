@@ -2,6 +2,7 @@ import Sortable from 'https://cdn.jsdelivr.net/npm/sortablejs@1.15.3/+esm';
 import { api } from '../api.js';
 import { state } from '../state.js';
 import { navigate, showToast, showModal, closeModal, escapeHtml } from '../utils.js';
+import { audioService } from '../audio.js';
 
 export default async function renderCollections(app) {
   app.innerHTML = `
@@ -247,6 +248,7 @@ export default async function renderCollections(app) {
       if (overlay._escHandler) document.removeEventListener('keydown', overlay._escHandler);
       try {
         await api.delete(`/collections/${col.id}`);
+        audioService.clearCollectionAudio(col.id);
         closeModal();
         showToast('Collection deleted', 'success');
         const cols = await api.get('/collections');

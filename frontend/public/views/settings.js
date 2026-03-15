@@ -2,6 +2,7 @@ import { navigate, showToast } from '../utils.js';
 import { signOut } from '../auth.js';
 import { state } from '../state.js';
 import { getPreferences, updatePreferences } from '../api.js';
+import { getAudioEnabled, setAudioEnabled, getAutoPlay, setAutoPlay } from '../audio.js';
 
 const THEMES = [
   { id: 'midnight', name: 'Midnight', bg: '#0f1117', surface: '#1a1d27', accent: '#6c6fff', text: '#eef0ff' },
@@ -25,6 +26,8 @@ export default async function renderSettings(app) {
   const prefs = state.preferences ?? await getPreferences().then(p => { state.preferences = p; return p; });
   const currentLang = prefs.main_language || '';
   const current = localStorage.getItem('theme') || 'midnight';
+  const audioEnabled = getAudioEnabled();
+  const autoPlay = getAutoPlay();
 
   const themeCards = THEMES.map(t => `
     <button class="theme-card ${t.id === current ? 'active' : ''}" data-theme="${t.id}">
@@ -55,6 +58,23 @@ export default async function renderSettings(app) {
         <div class="word-section" style="margin-top: 24px">
           <div class="word-section-title">Color Theme</div>
           <div class="theme-grid">${themeCards}</div>
+        </div>
+        <div class="word-section" style="margin-top: 24px">
+          <div class="word-section-title">Audio</div>
+          <div class="pause-toggle" id="audio-toggle" role="button" tabindex="0" aria-pressed="${audioEnabled}">
+            <div>
+              <div class="pause-toggle-label">Enable Audio</div>
+              <div class="pause-toggle-sub">Tap words and sentences to hear them</div>
+            </div>
+            <div class="toggle-switch ${audioEnabled ? 'on' : ''}" id="audio-switch"></div>
+          </div>
+          <div class="pause-toggle" id="autoplay-toggle" role="button" tabindex="0" aria-pressed="${autoPlay}" style="margin-top:4px">
+            <div>
+              <div class="pause-toggle-label">Auto-play</div>
+              <div class="pause-toggle-sub">Play word audio when opening a word</div>
+            </div>
+            <div class="toggle-switch ${autoPlay ? 'on' : ''}" id="autoplay-switch"></div>
+          </div>
         </div>
         <div style="margin-top: 40px">
           <button class="btn-danger" id="signout-btn" style="width:100%">Sign Out</button>
@@ -89,6 +109,24 @@ export default async function renderSettings(app) {
       }
     };
   });
+
+  // Audio toggles
+  function wireToggle(rowId, switchId, getter, setter) {
+    const row = document.getElementById(rowId);
+    const sw  = document.getElementById(switchId);
+    const toggle = () => {
+      const next = !getter();
+      setter(next);
+      sw.classList.toggle('on', next);
+      row.setAttribute('aria-pressed', next);
+    };
+    row.addEventListener('click', toggle);
+    row.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); }
+    });
+  }
+  wireToggle('audio-toggle',    'audio-switch',    getAudioEnabled, setAudioEnabled);
+  wireToggle('autoplay-toggle', 'autoplay-switch', getAutoPlay,     setAutoPlay);
 
   document.querySelectorAll('.theme-card').forEach(card => {
     card.onclick = () => {
