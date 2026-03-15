@@ -1,6 +1,7 @@
 import os
 
 from google.cloud import storage
+from google.cloud.exceptions import NotFound
 
 
 class AudioCache:
@@ -12,10 +13,10 @@ class AudioCache:
         return self._client.bucket(self._bucket_name).blob(f'tts/{key}.mp3')
 
     def get_bytes(self, key: str) -> bytes | None:
-        blob = self._blob(key)
-        if not blob.exists():
+        try:
+            return self._blob(key).download_as_bytes()
+        except NotFound:
             return None
-        return blob.download_as_bytes()
 
     def put(self, key: str, audio_bytes: bytes) -> None:
         blob = self._blob(key)
