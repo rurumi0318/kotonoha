@@ -239,6 +239,12 @@ export default async function renderCollections(app) {
       const btn = document.getElementById('modal-confirm');
       btn.disabled = true;
       btn.innerHTML = '<span class="spinner-sm"></span>';
+      const overlay = document.getElementById('modal-overlay');
+      if (overlay._bdHandler) {
+        overlay.removeEventListener('mousedown', overlay._bdHandler);
+        overlay.removeEventListener('touchstart', overlay._bdHandler);
+      }
+      if (overlay._escHandler) document.removeEventListener('keydown', overlay._escHandler);
       try {
         await api.delete(`/collections/${col.id}`);
         closeModal();

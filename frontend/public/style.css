@@ -746,6 +746,87 @@ body.has-footer .toast-container {
   bottom: calc(var(--header-h) + 12px);
 }
 
+/* ── Quick Add modal ───────────────────────────────────────────── */
+.modal-subtitle {
+  font-size: 0.82rem;
+  color: var(--text-2);
+  margin-top: 3px;
+}
+
+.quickadd-set-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  background: var(--surface-el);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 12px 16px;
+  font-family: inherit;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+  gap: 12px;
+}
+.quickadd-set-row + .quickadd-set-row {
+  margin-top: 8px;
+}
+.quickadd-set-row:hover {
+  border-color: var(--accent);
+  background: rgba(108,111,255,0.06);
+}
+.quickadd-set-name {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text-1);
+}
+.quickadd-set-count {
+  font-size: 0.82rem;
+  color: var(--text-2);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.quickadd-confirm-card {
+  background: var(--surface-el);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 16px 18px;
+}
+.quickadd-confirm-name {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--text-1);
+  margin-bottom: 14px;
+}
+.quickadd-confirm-stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.quickadd-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.quickadd-stat-label {
+  font-size: 0.72rem;
+  color: var(--text-2);
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.quickadd-stat-value {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text-1);
+}
+.quickadd-note {
+  font-size: 0.78rem;
+  color: var(--text-2);
+  margin-top: 10px;
+  line-height: 1.5;
+}
+
 /* ── Toast ─────────────────────────────────────────────────────── */
 .toast-container {
   position: fixed;

@@ -6,6 +6,8 @@ import { navigate, showToast, showModal, closeModal, escapeHtml, stabilityIcon }
 export default async function renderDecks(app, cid) {
   if (!cid) { navigate('#/collections'); return; }
 
+  document.body.classList.add('has-footer');
+
   app.innerHTML = `
     <div class="view-layout">
       <header class="app-header">
@@ -23,11 +25,15 @@ export default async function renderDecks(app, cid) {
           <div class="loading-state"><div class="spinner"></div></div>
         </div>
       </main>
+      <footer class="app-footer">
+        <button class="btn-secondary app-footer-btn" id="quickadd-btn">Quick Add</button>
+      </footer>
     </div>
   `;
 
   document.getElementById('back-btn').onclick = () => navigate('#/collections');
   document.getElementById('new-btn').onclick = () => openCreateModal(null);
+  document.getElementById('quickadd-btn').onclick = () => openQuickAddModal();
 
   let decks = [];
   let collectionName = '';
@@ -260,6 +266,124 @@ export default async function renderDecks(app, cid) {
     });
   }
 
+  async function openQuickAddModal() {
+    showModal(`
+      <div class="modal-header">
+        <div class="modal-title">Quick Add Vocabulary</div>
+        <div class="modal-subtitle">Select a set to bulk-import into this collection.</div>
+      </div>
+      <div class="modal-body">
+        <div class="loading-state"><div class="spinner"></div></div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-secondary" id="modal-cancel">Cancel</button>
+      </div>
+    `);
+    document.getElementById('modal-cancel').onclick = closeModal;
+
+    let sets;
+    try {
+      sets = await api.get('/quickadd/sets');
+    } catch {
+      showToast('Failed to load vocabulary sets', 'error');
+      closeModal();
+      return;
+    }
+
+    showSetPicker(sets);
+  }
+
+  function showSetPicker(sets) {
+    showModal(`
+      <div class="modal-header">
+        <div class="modal-title">Quick Add Vocabulary</div>
+        <div class="modal-subtitle">Select a set to bulk-import into this collection.</div>
+      </div>
+      <div class="modal-body">
+        ${sets.map(s => `
+          <button class="quickadd-set-row" data-id="${escapeHtml(s.set_id)}">
+            <span class="quickadd-set-name">${escapeHtml(s.display_name)}</span>
+            <span class="quickadd-set-count">${s.word_count.toLocaleString()} words</span>
+          </button>
+        `).join('')}
+      </div>
+      <div class="modal-footer">
+        <button class="btn-secondary" id="modal-cancel">Cancel</button>
+      </div>
+    `);
+    document.getElementById('modal-cancel').onclick = closeModal;
+    document.querySelectorAll('.quickadd-set-row').forEach(btn => {
+      btn.onclick = () => {
+        const set = sets.find(s => s.set_id === btn.dataset.id);
+        if (set) showConfirmation(set, sets);
+      };
+    });
+  }
+
+  function showConfirmation(set, sets) {
+    const deckCount = Math.ceil(set.word_count / 20);
+    showModal(`
+      <div class="modal-header">
+        <div class="modal-title">Quick Add Vocabulary</div>
+      </div>
+      <div class="modal-body">
+        <div class="quickadd-confirm-card">
+          <div class="quickadd-confirm-name">${escapeHtml(set.display_name)}</div>
+          <div class="quickadd-confirm-stats">
+            <div class="quickadd-stat">
+              <span class="quickadd-stat-label">Decks</span>
+              <span class="quickadd-stat-value">${deckCount}</span>
+            </div>
+            <div class="quickadd-stat">
+              <span class="quickadd-stat-label">Words</span>
+              <span class="quickadd-stat-value">${set.word_count.toLocaleString()}</span>
+            </div>
+          </div>
+        </div>
+        <p class="quickadd-note">Decks will be added to this collection.</p>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-secondary" id="modal-back">Back</button>
+        <button class="btn-primary" id="modal-confirm">Add</button>
+      </div>
+    `);
+    document.getElementById('modal-back').onclick = () => showSetPicker(sets);
+    document.getElementById('modal-confirm').onclick = () => doQuickAdd(set);
+  }
+
+  async function doQuickAdd(set) {
+    const btn = document.getElementById('modal-confirm');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-sm"></span>';
+
+    // Prevent backdrop click and Escape from closing the modal during import
+    const overlay = document.getElementById('modal-overlay');
+    if (overlay._bdHandler) {
+      overlay.removeEventListener('mousedown', overlay._bdHandler);
+      overlay.removeEventListener('touchstart', overlay._bdHandler);
+    }
+    if (overlay._escHandler) {
+      document.removeEventListener('keydown', overlay._escHandler);
+    }
+
+    try {
+      const result = await api.post(`/collections/${cid}/quickadd`, { set_id: set.set_id });
+      closeModal();
+      delete state.decksCache[cid];
+      state.collectionsCache = null;
+      showToast(`${set.display_name} added — ${result.decks_created} decks, ${result.words_created} words`, 'success');
+      const fresh = await api.get(`/collections/${cid}/decks`);
+      state.decksCache[cid] = fresh;
+      decks = fresh;
+      renderList(fresh);
+      loadAllDeckStats(fresh);
+    } catch (err) {
+      showToast(err.message || 'Failed to add vocabulary set', 'error');
+      btn.disabled = false;
+      btn.textContent = 'Add';
+    }
+  }
+
   function openDeleteModal(deck) {
     showModal(`
       <div class="modal-header">
@@ -279,6 +403,12 @@ export default async function renderDecks(app, cid) {
       const btn = document.getElementById('modal-confirm');
       btn.disabled = true;
       btn.innerHTML = '<span class="spinner-sm"></span>';
+      const overlay = document.getElementById('modal-overlay');
+      if (overlay._bdHandler) {
+        overlay.removeEventListener('mousedown', overlay._bdHandler);
+        overlay.removeEventListener('touchstart', overlay._bdHandler);
+      }
+      if (overlay._escHandler) document.removeEventListener('keydown', overlay._escHandler);
       try {
         await api.delete(`/collections/${cid}/decks/${deck.id}`);
         delete state.decksCache[cid];
