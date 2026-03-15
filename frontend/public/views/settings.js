@@ -2,7 +2,7 @@ import { navigate, showToast } from '../utils.js';
 import { signOut } from '../auth.js';
 import { state } from '../state.js';
 import { getPreferences, updatePreferences } from '../api.js';
-import { getAudioEnabled, setAudioEnabled, getAutoPlay, setAutoPlay } from '../audio.js';
+import { getAudioEnabled, setAudioEnabled, getAutoPlay, setAutoPlay, VOICE_OPTIONS, getSelectedVoiceId, setSelectedVoiceId } from '../audio.js';
 
 const THEMES = [
   { id: 'midnight', name: 'Midnight', bg: '#0f1117', surface: '#1a1d27', accent: '#6c6fff', text: '#eef0ff' },
@@ -28,6 +28,7 @@ export default async function renderSettings(app) {
   const current = localStorage.getItem('theme') || 'midnight';
   const audioEnabled = getAudioEnabled();
   const autoPlay = getAutoPlay();
+  const selectedVoiceId = getSelectedVoiceId();
 
   const themeCards = THEMES.map(t => `
     <button class="theme-card ${t.id === current ? 'active' : ''}" data-theme="${t.id}">
@@ -74,6 +75,14 @@ export default async function renderSettings(app) {
               <div class="pause-toggle-sub">Play word audio when opening a word</div>
             </div>
             <div class="toggle-switch ${autoPlay ? 'on' : ''}" id="autoplay-switch"></div>
+          </div>
+          <div style="margin-top:16px">
+            <div class="pause-toggle-label" style="margin-bottom:8px">Voice</div>
+            <div class="lang-toggle">
+              ${VOICE_OPTIONS.map(v => `
+                <button class="lang-toggle-btn ${v.id === selectedVoiceId ? 'active' : ''}" data-voice="${v.id}">${v.label}</button>
+              `).join('')}
+            </div>
           </div>
         </div>
         <div style="margin-top: 40px">
@@ -127,6 +136,14 @@ export default async function renderSettings(app) {
   }
   wireToggle('audio-toggle',    'audio-switch',    getAudioEnabled, setAudioEnabled);
   wireToggle('autoplay-toggle', 'autoplay-switch', getAutoPlay,     setAutoPlay);
+
+  document.querySelectorAll('[data-voice]').forEach(btn => {
+    btn.onclick = () => {
+      setSelectedVoiceId(btn.dataset.voice);
+      document.querySelectorAll('[data-voice]').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+    };
+  });
 
   document.querySelectorAll('.theme-card').forEach(card => {
     card.onclick = () => {
