@@ -322,3 +322,145 @@ If the script is interrupted (Ctrl+C, quota error, network issue), just re-run t
 ```
 
 `example_jp` and `example_en` are empty strings when the AI cannot find a suitable example (rare or archaic words). Results are mapped back to source entries using `idseq` as the primary key, with `word:reading` as a fallback for the one `null`-idseq entry.
+
+---
+
+## Quick-Add Vocabulary Database
+
+The quick-add feature lets users bulk-import a full vocabulary set (N1–N5, or any future set) directly into a collection. To avoid runtime cost, all data is pre-computed into a single SQLite database bundled in the Docker image.
+
+### Overview
+
+```
+backend/
+├── data/
+│   └── quickadd.db              # Pre-built database (gitignored, bundled in Docker)
+├── tools/
+│   └── build_quickadd_db.py     # Build tool — run once after the JLPT pipeline
+└── services/
+    └── quickadd_service.py      # Read-only runtime service
+```
+
+### What `build_quickadd_db.py` pre-computes
+
+For each word in the source examples file:
+
+1. **Looks up the jamdict entry by `idseq`** (direct ID lookup, no text search) to get the primary sense's English gloss and part-of-speech. For words with no `idseq` (no jamdict match), falls back to a reading-disambiguated text lookup; if still no match, definition is left empty.
+2. **Runs MeCab** to compute furigana for both the word surface and the example sentence. Furigana is stored as pre-serialised JSON — no MeCab runs at request time.
+3. **Writes rows** to `quickadd.db` with language-independent data in `quickadd_words` and English strings in `quickadd_translations` (see schema below).
+
+### Building `quickadd.db`
+
+`quickadd.db` depends on `jamdict.db` and the JLPT examples files. Build them first if they don't exist (see sections above), then:
+
+```powershell
+cd backend
+.venv\Scripts\python tools\build_quickadd_db.py
+```
+
+The tool is idempotent — re-running it replaces existing data cleanly.
+
+**Full build order from scratch:**
+
+```powershell
+# 1. Dictionary database (one-time)
+.venv\Scripts\python tools\build_jamdict_db.py
+
+# 2. JLPT enrichment (one-time per source file)
+.venv\Scripts\python tools\enrich_jlpt.py
+
+# 3. Gemini example sentences (one-time, requires GEMINI_API_KEY)
+$env:GEMINI_API_KEY = "your_key_here"
+.venv\Scripts\python tools\generate_jlpt_examples.py
+
+# 4. Quick-add database (re-run whenever examples or vocab sets change)
+.venv\Scripts\python tools\build_quickadd_db.py
+```
+
+### Adding a new vocabulary set
+
+1. Prepare an examples file with this schema (same format as the JLPT files):
+
+```json
+[
+  {
+    "idseq": 1198180,
+    "word": "会う",
+    "reading": "あう",
+    "example_jp": "友達に会います。",
+    "example_en": "I will meet a friend."
+  }
+]
+```
+
+`idseq` is the JMDict entry ID (used for accurate dictionary lookup). Set to `null` if unknown — the tool will fall back to a text search.
+
+2. Add one entry to `VOCAB_SETS` in `tools/build_quickadd_db.py`:
+
+```python
+{"set_id": "core_2k", "display_name": "Core 2000", "examples_file": "core2k_examples.json"},
+```
+
+3. Re-run `build_quickadd_db.py`. The new set is immediately served by `GET /quickadd/sets` and `POST /collections/{cid}/quickadd`.
+
+### Database schema
+
+```sql
+-- Vocabulary set metadata (one row per set)
+CREATE TABLE vocab_sets (
+    set_id       TEXT PRIMARY KEY,   -- "jlpt_n5"
+    display_name TEXT NOT NULL,      -- "JLPT N5"
+    word_count   INTEGER NOT NULL
+);
+
+-- Language-independent word data (word surface, reading, furigana, example JP)
+CREATE TABLE quickadd_words (
+    set_id        TEXT    NOT NULL,
+    word_no       INTEGER NOT NULL,  -- stable insertion order (0-based)
+    word          TEXT    NOT NULL,  -- surface form (kanji or kana)
+    reading       TEXT    NOT NULL,  -- kana reading
+    pos           TEXT,              -- part of speech
+    word_furigana TEXT    NOT NULL,  -- JSON: pre-computed FuriganaSegment
+    example_jp    TEXT    NOT NULL,  -- Japanese example sentence
+    sent_furigana TEXT,              -- JSON: pre-computed FuriganaSegment (null = no example)
+    PRIMARY KEY (set_id, word_no)
+);
+
+-- Language-specific strings (one row per word per language)
+CREATE TABLE quickadd_translations (
+    set_id     TEXT NOT NULL,
+    word_no    INTEGER NOT NULL,
+    lang       TEXT NOT NULL,        -- "en" (default); "zh", "ko", etc. in future
+    definition TEXT NOT NULL,        -- translated gloss
+    example_en TEXT NOT NULL,        -- translated example sentence
+    PRIMARY KEY (set_id, word_no, lang),
+    FOREIGN KEY (set_id, word_no) REFERENCES quickadd_words(set_id, word_no)
+);
+```
+
+The split between `quickadd_words` and `quickadd_translations` is intentional: the Japanese content never changes across languages, so it is stored once. Only `definition` and `example_en` are language-specific.
+
+### Adding a translation (future L10n)
+
+When a user's language preference is set to something other than English, the import endpoint passes that `lang` code to `quickadd_service.get_words(set_id, lang=...)`, which joins against `quickadd_translations` on that language.
+
+To add a new language (e.g. Traditional Chinese, `zh-TW`):
+
+1. Translate the `definition` and `example_en` fields for all words in the set offline (script + translation API, or manually).
+2. Insert rows into `quickadd_translations` with `lang = "zh-TW"`. The `quickadd_words` rows are shared — no duplication of Japanese data.
+3. No schema changes, no code changes required. The service and router already pass `lang` through.
+
+> **Note:** L10n is not implemented in the current stage. The `lang` column exists in the schema to make the future addition non-breaking. All current data has `lang = "en"`.
+
+### API endpoints
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/quickadd/sets` | List all available vocabulary sets |
+| POST | `/collections/{cid}/quickadd` | Bulk-import a set into a collection |
+
+**POST body:** `{ "set_id": "jlpt_n5" }`
+
+**POST response:** `{ "decks_created": 36, "words_created": 705 }`
+
+Each deck holds 20 words and is named `"JLPT N5, 001"`, `"JLPT N5, 002"`, etc. The deck tag is set to the set's `display_name` (e.g. `"JLPT N5"`).

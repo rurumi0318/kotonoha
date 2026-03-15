@@ -3,7 +3,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from routers import collections, decks, preferences, review, vocab, words
+from routers import collections, decks, preferences, quickadd, review, vocab, words
 from services.firebase import init_firebase
 
 
@@ -33,6 +33,7 @@ app.include_router(words.router)
 app.include_router(review.router)
 app.include_router(preferences.router)
 app.include_router(vocab.router)
+app.include_router(quickadd.router)
 
 
 if __name__ == "__main__":
