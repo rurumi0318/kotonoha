@@ -11,7 +11,7 @@ backend/
 ├── requirements.txt
 ├── models/
 │   ├── furigana.py       # FuriganaToken, FuriganaSegment
-│   ├── word.py           # WordData, Definition, FsrsData, request bodies
+│   ├── word.py           # WordData, Definition, FsrsData, review models, request bodies
 │   ├── deck.py           # Deck, request bodies
 │   ├── collection.py     # Collection, request bodies
 │   └── user.py           # UserPreferences
@@ -37,7 +37,8 @@ backend/
     ├── build_jamdict_db.py       # One-time script to build jamdict.db from JMdict_e
     ├── build_example_db.py       # One-time script to build examples.db from examples.utf
     ├── enrich_jlpt.py            # Enriches JLPT word lists with POS/definition from jamdict
-    └── generate_jlpt_examples.py # Generates example sentences for JLPT words via Gemini API
+    ├── generate_jlpt_examples.py # Generates example sentences for JLPT words via Gemini API
+    └── migrate_fsrs_due.py       # One-time migration: due_date→due, add counters, remove card_id
 ```
 
 See [VOCAB_LOOKUP.md](./VOCAB_LOOKUP.md) for the vocabulary lookup system, including how to build both databases.
@@ -104,13 +105,15 @@ Japanese text is stored with reading annotations (furigana) to support display o
         user_notes: string
         is_paused:  bool
         fsrs_data: {
-          card_id:     int
-          due_date:    timestamp
-          last_review: timestamp | null
-          stability:   float | null
-          difficulty:  float | null
-          step:        int | null
-          state:       int   # 1=Learning, 2=Review, 3=Relearning
+          due:            timestamp
+          last_review:    timestamp | null
+          stability:      float | null
+          difficulty:     float | null
+          step:           int | null
+          state:          int   # 1=Learning, 2=Review, 3=Relearning
+          scheduled_days: int   # interval (days) assigned at last review
+          review_count:   int   # total number of reviews
+          lapse_count:    int   # times forgotten (Again while in Review)
         }
 ```
 
@@ -145,18 +148,25 @@ This runs on every `POST`/`PATCH` for words and sentences — clients only send 
 
 Spaced repetition uses the [FSRS v6](https://github.com/open-spaced-repetition/py-fsrs) algorithm via the `fsrs` package.
 
-**Review ratings:** `1` = Again, `2` = Hard, `3` = Good, `4` = Easy
+**Review ratings:** `1` = Again, `3` = Good, `4` = Easy (Hard is not used)
 
-`due_date` is stored on each word document so Firestore can efficiently query all due words without loading every deck:
+`fsrs_data.due` is stored on each word document so Firestore can efficiently query all due words without loading every deck. The review endpoint supports filtering by collection and/or deck, early review, and batching based on the user's `daily_review_limit` preference.
 
 ```
 GET /review/due  →  collection_group("words")
                       .where("user_id", "==", uid)
                       .where("is_paused", "==", False)
-                      .where("fsrs_data.due_date", "<=", now)
+                      .where("fsrs_data.due", "<=", now)
+                      .order_by("fsrs_data.due")
+                      .limit(daily_review_limit)
 ```
 
-Requires a composite Firestore index: `(user_id ASC, is_paused ASC, fsrs_data.due_date ASC)`.
+Optional query params: `collection_id`, `deck_ids` (comma-separated, max 30), `early` (bool).
+
+**Composite Firestore indexes** (collection group `words`):
+- `(user_id ASC, is_paused ASC, fsrs_data.due ASC)` — main due query
+- `(user_id ASC, is_paused ASC, collection_id ASC, fsrs_data.due ASC)` — single-collection filter
+- `(user_id ASC, is_paused ASC, deck_id ASC, fsrs_data.due ASC)` — deck-level filter
 
 ## API Endpoints
 
@@ -190,8 +200,8 @@ Requires a composite Firestore index: `(user_id ASC, is_paused ASC, fsrs_data.du
 ### Review
 | Method | Path | Description |
 |--------|------|-------------|
-| GET | `/review/due` | Get all due words for the current user |
-| POST | `/review/collections/{cid}/decks/{did}/words/{id}` | Submit a review rating (1–4) |
+| GET | `/review/due` | Get due words (optional: `?collection_id=&deck_ids=&early=true`) |
+| POST | `/review/collections/{cid}/decks/{did}/words/{id}` | Submit a review rating (1, 3, or 4) |
 
 ### Preferences
 | Method | Path | Description |
