@@ -25,7 +25,9 @@ export default async function renderDecks(app, cid) {
           <div class="loading-state"><div class="spinner"></div></div>
         </div>
       </main>
-      <footer class="app-footer">
+      <footer class="app-footer app-footer--multi">
+        <button class="btn-primary app-footer-btn" id="review-all-btn">Review All</button>
+        <button class="btn-secondary app-footer-btn" id="select-decks-btn">Select Decks</button>
         <button class="btn-secondary app-footer-btn" id="quickadd-btn">Quick Add</button>
       </footer>
     </div>
@@ -33,6 +35,8 @@ export default async function renderDecks(app, cid) {
 
   document.getElementById('back-btn').onclick = () => navigate('#/collections');
   document.getElementById('new-btn').onclick = () => openCreateModal(null);
+  document.getElementById('review-all-btn').onclick = () => navigate(`#/test/${cid}`);
+  document.getElementById('select-decks-btn').onclick = () => openSelectDecksModal();
   document.getElementById('quickadd-btn').onclick = () => openQuickAddModal();
 
   let decks = [];
@@ -382,6 +386,56 @@ export default async function renderDecks(app, cid) {
       btn.disabled = false;
       btn.textContent = 'Add';
     }
+  }
+
+  function openSelectDecksModal() {
+    if (!decks.length) {
+      showToast('No decks to review', 'info');
+      return;
+    }
+
+    const selected = new Set(decks.map(d => d.id));
+
+    function render() {
+      showModal(`
+        <div class="modal-header">
+          <div class="modal-title">Select Decks to Review</div>
+        </div>
+        <div class="modal-body">
+          ${decks.map(d => `
+            <label class="select-deck-row">
+              <input type="checkbox" class="select-deck-check" data-id="${d.id}"
+                ${selected.has(d.id) ? 'checked' : ''}>
+              <span class="select-deck-name">${escapeHtml(d.name)}</span>
+            </label>
+          `).join('')}
+        </div>
+        <div class="modal-footer">
+          <button class="btn-secondary" id="modal-cancel">Cancel</button>
+          <button class="btn-primary" id="modal-confirm" ${selected.size === 0 ? 'disabled' : ''}>Review (${selected.size})</button>
+        </div>
+      `);
+
+      document.getElementById('modal-cancel').onclick = closeModal;
+      document.getElementById('modal-confirm').onclick = () => {
+        if (!selected.size) return;
+        closeModal();
+        const deckIds = [...selected].join(',');
+        navigate(`#/test/${cid}?decks=${deckIds}`);
+      };
+
+      document.querySelectorAll('.select-deck-check').forEach(cb => {
+        cb.onchange = () => {
+          if (cb.checked) selected.add(cb.dataset.id);
+          else selected.delete(cb.dataset.id);
+          const btn = document.getElementById('modal-confirm');
+          btn.textContent = `Review (${selected.size})`;
+          btn.disabled = selected.size === 0;
+        };
+      });
+    }
+
+    render();
   }
 
   function openDeleteModal(deck) {

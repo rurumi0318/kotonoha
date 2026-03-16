@@ -86,6 +86,16 @@ export function formatDateFull(dateStr) {
 }
 
 // ── FSRS helpers ───────────────────────────────────────────────────
+export function masteryIcon(fsrsData) {
+  if (!fsrsData?.stability) return '⚪';
+  const t = (Date.now() - new Date(fsrsData.last_review).getTime()) / 86400000;
+  const R = Math.pow(1 + (19 / 81) * t / fsrsData.stability, -0.5);
+  if (R >= 0.90) return '🟢';
+  if (R >= 0.70) return '🟡';
+  if (R >= 0.40) return '🟠';
+  return '🔴';
+}
+
 // Backend states: 1=Learning, 2=Review, 3=Relearning
 export function fsrsStateBadge(stateNum) {
   const map = {

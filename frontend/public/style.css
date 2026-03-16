@@ -766,6 +766,13 @@ ruby rt {
   flex-shrink: 0;
 }
 
+/* ── Mastery icon ──────────────────────────────────────────────── */
+.mastery-icon {
+  font-size: 0.7rem;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
 /* ── App footer ────────────────────────────────────────────────── */
 .app-footer {
   height: var(--header-h);
@@ -781,6 +788,14 @@ ruby rt {
 .app-footer-btn {
   width: 100%;
   max-width: 360px;
+}
+
+.app-footer--multi {
+  gap: 8px;
+}
+.app-footer--multi .app-footer-btn {
+  flex: 1;
+  max-width: none;
 }
 
 body.has-footer .toast-container {
@@ -1493,6 +1508,248 @@ body.furigana-off .furigana-btn-icon {
 .word-nav-btn:disabled {
   opacity: 0.25;
   cursor: default;
+}
+
+/* ── Select deck modal ─────────────────────────────────────────── */
+.select-deck-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 4px;
+  cursor: pointer;
+  border-bottom: 1px solid var(--border);
+  transition: background 0.1s;
+}
+.select-deck-row:last-child { border-bottom: none; }
+.select-deck-row:hover { background: var(--surface-el); }
+.select-deck-check {
+  accent-color: var(--accent);
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  cursor: pointer;
+}
+.select-deck-name {
+  font-size: 1rem;
+  color: var(--text-1);
+}
+
+/* ── Review session ───────────────────────────────────────────── */
+.review-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.review-progress {
+  font-size: 0.85rem;
+  color: var(--text-2);
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.review-card {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  user-select: none;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 16px;
+}
+
+.review-front {
+  text-align: center;
+}
+
+.review-front-word {
+  font-family: var(--font-ja);
+  font-size: 3.5rem;
+  line-height: 2;
+  color: var(--text-1);
+}
+
+.review-front-hint {
+  font-size: 1.1rem;
+  color: var(--text-2);
+  font-family: var(--font-ja);
+  margin-top: 4px;
+}
+
+.review-tap-hint {
+  font-size: 0.82rem;
+  color: var(--text-2);
+  margin-top: 24px;
+  opacity: 0.6;
+}
+
+.review-back {
+  width: 100%;
+  max-width: 520px;
+}
+
+.review-back-word {
+  font-family: var(--font-ja);
+  font-size: 2.5rem;
+  line-height: 2;
+  color: var(--text-1);
+  text-align: center;
+  margin-bottom: 8px;
+}
+
+.review-back-section {
+  margin-top: 16px;
+}
+
+.review-back-def {
+  font-size: 1.2rem;
+  color: var(--text-1);
+  padding: 8px 0;
+}
+
+.review-back-sentence-ja {
+  font-family: var(--font-ja);
+  font-size: 1.1rem;
+  line-height: 1.9;
+  color: var(--text-1);
+}
+
+.review-back-sentence-en {
+  font-size: 1rem;
+  color: var(--text-2);
+  margin-top: 2px;
+}
+
+.review-back-notes {
+  font-size: 0.95rem;
+  color: var(--text-2);
+  font-style: italic;
+  padding: 10px 14px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  white-space: pre-wrap;
+}
+
+.review-back-meta {
+  font-size: 0.78rem;
+  color: var(--text-2);
+  text-align: center;
+  margin-top: 12px;
+  opacity: 0.7;
+}
+
+.review-actions {
+  display: flex;
+  gap: 10px;
+  padding: 12px 16px 16px;
+  flex-shrink: 0;
+}
+
+.review-action-btn {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 14px 8px;
+  border-radius: var(--radius-sm);
+  font-size: 1rem;
+  font-weight: 600;
+  transition: opacity 0.15s;
+}
+.review-action-btn:hover { opacity: 0.85; }
+
+.review-action-interval {
+  font-size: 0.72rem;
+  font-weight: 400;
+  opacity: 0.8;
+}
+
+.review-btn-again {
+  background: var(--danger);
+  color: #fff;
+}
+.review-btn-good {
+  background: var(--accent);
+  color: #fff;
+}
+.review-btn-easy {
+  background: var(--success);
+  color: #fff;
+}
+
+/* Review summary */
+.review-summary {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+  padding: 40px 24px;
+  text-align: center;
+  flex: 1;
+}
+
+.review-summary-icon { font-size: 3rem; }
+
+.review-summary-title {
+  font-size: 1.4rem;
+  font-weight: 600;
+  color: var(--text-1);
+}
+
+.review-summary-stats {
+  display: flex;
+  gap: 20px;
+}
+
+.review-summary-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.review-summary-stat-value {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--text-1);
+}
+
+.review-summary-stat-label {
+  font-size: 0.78rem;
+  color: var(--text-2);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* Review empty state */
+.review-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 48px 24px;
+  text-align: center;
+  flex: 1;
+}
+
+.review-empty-icon { font-size: 3rem; }
+
+.review-empty-title {
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: var(--text-1);
+}
+
+.review-empty-sub {
+  font-size: 0.95rem;
+  color: var(--text-2);
 }
 
 /* ── Responsive ────────────────────────────────────────────────── */

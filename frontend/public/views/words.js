@@ -4,12 +4,14 @@ import { state } from '../state.js';
 import { renderFurigana, renderFuriganaText } from '../furigana.js';
 import {
   navigate, showToast, showModal, closeModal, escapeHtml,
-  fsrsStateBadge, formatDate, getFuriganaEnabled, setFuriganaEnabled,
+  masteryIcon, getFuriganaEnabled, setFuriganaEnabled,
 } from '../utils.js';
 
 export default async function renderWords(app, cid, did) {
   if (!cid || !did) { navigate('#/collections'); return; }
   const cacheKey = `${cid}/${did}`;
+
+  document.body.classList.add('has-footer');
 
   app.innerHTML = `
     <div class="view-layout">
@@ -20,11 +22,6 @@ export default async function renderWords(app, cid, did) {
         <div class="header-title word-header-breadcrumb" id="deck-title"></div>
         <button class="btn-icon" id="furigana-btn" title="Toggle furigana">
           <span class="furigana-btn-icon">ふ</span>
-        </button>
-        <button class="btn-icon" id="test-btn" title="Test this deck">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <polygon points="5 3 19 12 5 21 5 3"/>
-          </svg>
         </button>
       </header>
       <main class="app-main">
@@ -39,13 +36,16 @@ export default async function renderWords(app, cid, did) {
           <div class="loading-state"><div class="spinner"></div></div>
         </div>
       </main>
+      <footer class="app-footer">
+        <button class="btn-primary app-footer-btn" id="review-btn">Review</button>
+      </footer>
     </div>
   `;
 
   document.getElementById('back-btn').onclick = () => navigate(`#/decks/${cid}`);
-  document.getElementById('test-btn').onclick = () => navigate(`#/test/${cid}/${did}`);
   document.getElementById('furigana-btn').onclick = () => setFuriganaEnabled(!getFuriganaEnabled());
   document.getElementById('new-btn').onclick = () => navigate(`#/add-word/${cid}/${did}`);
+  document.getElementById('review-btn').onclick = () => navigate(`#/test/${cid}/${did}`);
 
   let words = [];
 
@@ -93,20 +93,16 @@ export default async function renderWords(app, cid, did) {
     list.innerHTML = ws.map(w => {
       const surface = renderFuriganaText(w.word);
       const furigana = renderFurigana(w.word);
-      const due = w.fsrs_data?.due_date;
-      const dueStr = formatDate(due);
-      const isOverdue = due && new Date(due) <= new Date();
       return `
         <div class="word-item" data-id="${w.id}">
           <span class="card-drag" title="Drag to reorder">⠿</span>
           <div class="word-item-body" data-id="${w.id}">
             <div class="word-surface-with-hint">
+              <span class="mastery-icon">${masteryIcon(w.fsrs_data)}</span>
               <span class="word-surface-sm" lang="ja">${furigana}</span>
               ${w.kana_hint ? `<span class="word-kana-hint" lang="ja">${escapeHtml(w.kana_hint)}</span>` : ''}
             </div>
             <div class="word-item-right">
-              ${fsrsStateBadge(w.fsrs_data?.state)}
-              <span class="due-label ${isOverdue ? 'overdue' : ''}">${escapeHtml(dueStr)}</span>
               ${w.is_paused ? '<span class="badge badge-tag">Paused</span>' : ''}
             </div>
           </div>

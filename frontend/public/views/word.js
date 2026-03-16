@@ -205,7 +205,7 @@ export default async function renderWord(app, cid, did, wid) {
               </div>
               <div class="fsrs-cell">
                 <div class="fsrs-cell-label">Due</div>
-                <div class="fsrs-cell-value">${formatDate(fsrs.due_date)}</div>
+                <div class="fsrs-cell-value">${formatDate(fsrs.due)}</div>
               </div>
               <div class="fsrs-cell">
                 <div class="fsrs-cell-label">Last Review</div>
