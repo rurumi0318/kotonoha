@@ -1535,126 +1535,54 @@ body.furigana-off .furigana-btn-icon {
 }
 
 /* ── Review session ───────────────────────────────────────────── */
-.review-container {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-}
-
 .review-progress {
   font-size: 0.85rem;
   color: var(--text-2);
-  text-align: center;
   flex-shrink: 0;
+  white-space: nowrap;
 }
 
-.review-card {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  user-select: none;
-  min-height: 0;
-  overflow-y: auto;
-  padding: 16px;
-}
+/* Review card front: always hide ruby (user must recall reading) */
+.review-front-mode ruby rt { display: none !important; }
 
-.review-front {
-  text-align: center;
-}
+/* Review card front: hide kana-hint when toggled off */
+.review-front-mode.review-hint-off .word-kana-hint-lg { visibility: hidden; }
 
-.review-front-word {
+/* Review card back: always show ruby regardless of global furigana setting */
+body.furigana-off .review-back-mode ruby rt { display: revert !important; }
+
+/* Hint toggle button */
+.review-hint-btn-icon {
   font-family: var(--font-ja);
-  font-size: 3.5rem;
-  line-height: 2;
-  color: var(--text-1);
-}
-
-.review-front-hint {
-  font-size: 1.1rem;
-  color: var(--text-2);
-  font-family: var(--font-ja);
-  margin-top: 4px;
-}
-
-.review-tap-hint {
-  font-size: 0.82rem;
-  color: var(--text-2);
-  margin-top: 24px;
-  opacity: 0.6;
-}
-
-.review-back {
-  width: 100%;
-  max-width: 520px;
-}
-
-.review-back-word {
-  font-family: var(--font-ja);
-  font-size: 2.5rem;
-  line-height: 2;
-  color: var(--text-1);
-  text-align: center;
-  margin-bottom: 8px;
-}
-
-.review-back-section {
-  margin-top: 16px;
-}
-
-.review-back-def {
-  font-size: 1.2rem;
-  color: var(--text-1);
-  padding: 8px 0;
-}
-
-.review-back-sentence-ja {
-  font-family: var(--font-ja);
-  font-size: 1.1rem;
-  line-height: 1.9;
-  color: var(--text-1);
-}
-
-.review-back-sentence-en {
-  font-size: 1rem;
-  color: var(--text-2);
-  margin-top: 2px;
-}
-
-.review-back-notes {
   font-size: 0.95rem;
-  color: var(--text-2);
-  font-style: italic;
-  padding: 10px 14px;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  white-space: pre-wrap;
+  line-height: 1;
+}
+.review-hint-btn-icon.review-hint-off {
+  text-decoration: line-through;
+  opacity: 0.45;
 }
 
-.review-back-meta {
-  font-size: 0.78rem;
-  color: var(--text-2);
-  text-align: center;
-  margin-top: 12px;
-  opacity: 0.7;
+/* Override app-main defaults for the card view */
+.review-main {
+  overflow: hidden !important;
+  padding: 0 !important;
+}
+.review-main > .word-panel {
+  height: 100%;
+  flex: none;
 }
 
-.review-actions {
-  display: flex;
-  gap: 10px;
-  padding: 12px 16px 16px;
-  flex-shrink: 0;
+/* Reuse word-primary scroll in review back */
+.review-main .word-primary {
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
 }
+.review-main .word-primary::-webkit-scrollbar { display: none; }
 
+/* Rating buttons in the footer */
 .review-action-btn {
   flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 4px;
   padding: 14px 8px;
   border-radius: var(--radius-sm);
   font-size: 1rem;
@@ -1662,25 +1590,11 @@ body.furigana-off .furigana-btn-icon {
   transition: opacity 0.15s;
 }
 .review-action-btn:hover { opacity: 0.85; }
+.review-action-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 
-.review-action-interval {
-  font-size: 0.72rem;
-  font-weight: 400;
-  opacity: 0.8;
-}
-
-.review-btn-again {
-  background: var(--danger);
-  color: #fff;
-}
-.review-btn-good {
-  background: var(--accent);
-  color: #fff;
-}
-.review-btn-easy {
-  background: var(--success);
-  color: #fff;
-}
+.review-btn-again { background: var(--danger);  color: #fff; }
+.review-btn-good  { background: var(--accent);  color: #fff; }
+.review-btn-easy  { background: var(--success); color: #fff; }
 
 /* Review summary */
 .review-summary {

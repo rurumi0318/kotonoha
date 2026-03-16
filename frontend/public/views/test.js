@@ -2,6 +2,11 @@ import { api } from '../api.js';
 import { state } from '../state.js';
 import { renderFurigana } from '../furigana.js';
 import { navigate, showToast, escapeHtml } from '../utils.js';
+import { audioService } from '../audio.js';
+
+function getReviewHint() {
+  return localStorage.getItem('kotonoha_review_hint') === '1';
+}
 
 export default async function renderTest(app, cid, did) {
   if (!cid) { navigate('#/collections'); return; }
@@ -11,13 +16,12 @@ export default async function renderTest(app, cid, did) {
   const params = new URLSearchParams(hashParts[1] || '');
   const decksParam = params.get('decks') || '';
 
-  const backTarget = did
-    ? `#/words/${cid}/${did}`
-    : `#/decks/${cid}`;
-
+  const backTarget = did ? `#/words/${cid}/${did}` : `#/decks/${cid}`;
   const headerTitle = did
     ? (state.deckName || 'Review')
     : (state.collectionName || 'Review');
+
+  document.body.classList.add('has-footer');
 
   app.innerHTML = `
     <div class="view-layout">
@@ -26,15 +30,45 @@ export default async function renderTest(app, cid, did) {
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
         </button>
         <div class="header-title">${escapeHtml(headerTitle)}</div>
+        <button class="btn-icon" id="hint-toggle-btn" title="Toggle reading hint">
+          <span class="review-hint-btn-icon">ひ</span>
+        </button>
         <div class="review-progress" id="progress"></div>
       </header>
-      <main class="app-main" id="review-main" style="padding:0;">
+      <main class="app-main review-main" id="review-main">
         <div class="loading-state"><div class="spinner"></div></div>
       </main>
+      <footer class="app-footer" id="review-footer"></footer>
     </div>
   `;
 
-  document.getElementById('back-btn').onclick = () => navigate(backTarget);
+  document.getElementById('back-btn').onclick = () => {
+    audioService.cancel();
+    navigate(backTarget);
+  };
+
+  function updateHintBtn() {
+    const on = getReviewHint();
+    const icon = document.querySelector('.review-hint-btn-icon');
+    if (icon) icon.classList.toggle('review-hint-off', !on);
+  }
+
+  document.getElementById('hint-toggle-btn').onclick = () => {
+    const newVal = !getReviewHint();
+    localStorage.setItem('kotonoha_review_hint', newVal ? '1' : '0');
+    updateHintBtn();
+    // Apply/remove class on front panel if currently showing front
+    const panel = document.querySelector('.review-front-mode');
+    if (panel) panel.classList.toggle('review-hint-off', !newVal);
+  };
+
+  updateHintBtn();
+
+  // Clean up audio on navigation away
+  window.addEventListener('hashchange', () => {
+    audioService.cancel();
+    document.onkeydown = null;
+  }, { once: true });
 
   // Fetch due words
   let dueResponse;
@@ -48,12 +82,7 @@ export default async function renderTest(app, cid, did) {
     }
     dueResponse = await api.get(url);
   } catch (err) {
-    document.getElementById('review-main').innerHTML = `
-      <div class="review-empty">
-        <div class="review-empty-icon">⚠️</div>
-        <div class="review-empty-title">Failed to load review</div>
-        <div class="review-empty-sub">${escapeHtml(err.message)}</div>
-      </div>`;
+    renderError(err.message);
     return;
   }
 
@@ -61,12 +90,11 @@ export default async function renderTest(app, cid, did) {
   const nextDue = dueResponse.next_due;
   const isEarly = dueResponse.is_early;
 
-  // Session state
+  // Session state — declared before empty check so renderEmpty can access them
   const queue = [...words];
   let totalUnique = words.length;
   let reviewed = 0;
   const stats = { again: 0, good: 0, easy: 0 };
-  let currentFlipped = false;
 
   if (!words.length) {
     renderEmpty(nextDue, isEarly);
@@ -75,177 +103,197 @@ export default async function renderTest(app, cid, did) {
 
   showCard();
 
+  // ── Card front ──────────────────────────────────────────────────
   function showCard() {
+    audioService.cancel();
+    document.onkeydown = null;
+
     if (!queue.length) {
       renderSummary();
       return;
     }
 
     const word = queue[0];
-    currentFlipped = false;
-
     document.getElementById('progress').textContent = `${reviewed + 1} / ${totalUnique}`;
 
-    const main = document.getElementById('review-main');
-    main.style.padding = '0';
-    main.innerHTML = `
-      <div class="review-container">
-        <div class="review-card" id="card-area">
-          <div class="review-front" id="card-front">
-            <div class="review-front-word" lang="ja">${renderFurigana(word.word)}</div>
-            ${word.kana_hint ? `<div class="review-front-hint" lang="ja">${escapeHtml(word.kana_hint)}</div>` : ''}
-            <div class="review-tap-hint">Tap to reveal</div>
-          </div>
+    // Front: word-hero layout (no definition visible)
+    document.getElementById('review-main').innerHTML = `
+      <div class="word-panel word-panel--overview review-front-mode${getReviewHint() ? '' : ' review-hint-off'}">
+        <div class="word-hero" id="review-hero">
+          <div class="word-surface-lg" lang="ja">${renderFurigana(word.word)}</div>
+          ${word.kana_hint ? `<div class="word-kana-hint-lg" lang="ja">${escapeHtml(word.kana_hint)}</div>` : ''}
+        </div>
+        <div class="word-primary">
+          <div class="word-primary-empty" style="opacity:0.4">Press Reveal to see the answer</div>
         </div>
       </div>
     `;
 
-    const cardArea = document.getElementById('card-area');
-    cardArea.onclick = () => { if (!currentFlipped) flipCard(word); };
+    // Footer: Reveal button
+    document.getElementById('review-footer').className = 'app-footer';
+    document.getElementById('review-footer').innerHTML = `
+      <button class="btn-primary app-footer-btn" id="reveal-btn">Reveal</button>
+    `;
 
+    // Word hero taps play audio (no flip)
+    if (audioService.isAvailable()) {
+      const heroEl = document.getElementById('review-hero');
+      heroEl.addEventListener('click', () =>
+        audioService.speak(word.word.surface, cid, heroEl)
+      );
+    }
+
+    document.getElementById('reveal-btn').onclick = () => flipCard(word);
+
+    // Space bar also reveals
     document.onkeydown = (e) => {
       if (e.key === ' ' || e.key === 'Spacebar') {
         e.preventDefault();
-        if (!currentFlipped) flipCard(word);
+        flipCard(word);
       }
     };
   }
 
+  // ── Card back ───────────────────────────────────────────────────
   function flipCard(word) {
-    currentFlipped = true;
+    document.onkeydown = null;
+    audioService.cancel();
 
-    const defsHtml = (word.definitions || []).map(def => {
-      const sentencesHtml = (def.sentences || []).map(s => {
-        const jaText = typeof s === 'string' ? escapeHtml(s) : (s.japanese ? renderFurigana(s.japanese) : renderFurigana(s));
-        const enText = s.english ? escapeHtml(s.english) : '';
-        return `
-          <div style="padding:6px 0;">
-            <div class="review-back-sentence-ja" lang="ja">${jaText}</div>
-            ${enText ? `<div class="review-back-sentence-en">${enText}</div>` : ''}
-          </div>`;
-      }).join('');
+    const firstDef = word.definitions?.[0] ?? null;
+    const firstSentence = firstDef?.sentences?.[0] ?? null;
 
-      return `
-        <div class="review-back-def">${escapeHtml(def.english_definition || '')}</div>
-        ${sentencesHtml}`;
-    }).join('');
-
-    const notesHtml = word.user_notes
-      ? `<div class="review-back-section"><div class="review-back-notes">${escapeHtml(word.user_notes)}</div></div>`
-      : '';
-
-    const scheduledDays = word.fsrs_data?.scheduled_days;
-    const intervalLabel = formatInterval(scheduledDays);
-
-    const main = document.getElementById('review-main');
-    main.innerHTML = `
-      <div class="review-container">
-        <div class="review-card" id="card-area" style="cursor:default;">
-          <div class="review-back">
-            <div class="review-back-word" lang="ja">${renderFurigana(word.word)}</div>
-            ${defsHtml}
-            ${notesHtml}
-            <div class="review-back-meta">${escapeHtml(word.deck_name || '')}</div>
-          </div>
+    document.getElementById('review-main').innerHTML = `
+      <div class="word-panel word-panel--overview review-back-mode">
+        <div class="word-hero" id="review-hero">
+          <div class="word-surface-lg" lang="ja">${renderFurigana(word.word)}</div>
+          ${word.kana_hint ? `<div class="word-kana-hint-lg" lang="ja">${escapeHtml(word.kana_hint)}</div>` : ''}
         </div>
-        <div class="review-actions">
-          <button class="review-action-btn review-btn-again" data-rating="1">
-            Again
-          </button>
-          <button class="review-action-btn review-btn-good" data-rating="3">
-            Good
-          </button>
-          <button class="review-action-btn review-btn-easy" data-rating="4">
-            Easy
-          </button>
+        <div class="word-primary" id="review-primary">
+          ${firstDef ? `
+            <div class="word-primary-def">${escapeHtml(firstDef.english_definition)}</div>
+            ${firstSentence ? `
+              <div class="word-primary-sentence"
+                data-surface="${escapeHtml(firstSentence.surface)}">
+                <div class="sentence-ja" lang="ja">${renderFurigana(firstSentence)}</div>
+                ${firstSentence.en ? `<div class="sentence-en">${escapeHtml(firstSentence.en)}</div>` : ''}
+              </div>
+            ` : ''}
+          ` : `<div class="word-primary-empty">No definitions yet.</div>`}
         </div>
       </div>
     `;
 
-    // Keyboard shortcuts for rating
+    // Footer: Again / Good / Easy
+    document.getElementById('review-footer').className = 'app-footer app-footer--multi';
+    document.getElementById('review-footer').innerHTML = `
+      <button class="review-action-btn review-btn-again" data-rating="1">Again</button>
+      <button class="review-action-btn review-btn-good"  data-rating="3">Good</button>
+      <button class="review-action-btn review-btn-easy"  data-rating="4">Easy</button>
+    `;
+
+    // Audio: hero taps play word
+    if (audioService.isAvailable()) {
+      const heroEl = document.getElementById('review-hero');
+      heroEl.addEventListener('click', () =>
+        audioService.speak(word.word.surface, cid, heroEl)
+      );
+
+      if (firstSentence) {
+        const primaryEl = document.getElementById('review-primary');
+        if (primaryEl) {
+          primaryEl.classList.add('audio-enabled');
+          primaryEl.addEventListener('click', () =>
+            audioService.speak(firstSentence.surface, cid, primaryEl)
+          );
+        }
+      }
+    }
+
+    // Rating buttons
+    document.querySelectorAll('.review-action-btn').forEach(btn => {
+      btn.onclick = () => submitRating(word, parseInt(btn.dataset.rating));
+    });
+
+    // Keyboard shortcuts
     document.onkeydown = (e) => {
       if (e.key === '1') submitRating(word, 1);
       else if (e.key === '2' || e.key === '3') submitRating(word, 3);
       else if (e.key === '4') submitRating(word, 4);
     };
-
-    main.querySelectorAll('.review-action-btn').forEach(btn => {
-      btn.onclick = () => submitRating(word, parseInt(btn.dataset.rating));
-    });
   }
 
+  // ── Submit rating ───────────────────────────────────────────────
   async function submitRating(word, rating) {
-    const cid_ = word.collection_id;
-    const did_ = word.deck_id;
-    const wid_ = word.id;
-
-    // Disable buttons immediately
+    document.onkeydown = null;
     document.querySelectorAll('.review-action-btn').forEach(b => { b.disabled = true; });
+    audioService.cancel();
 
     try {
-      await api.post(`/review/collections/${cid_}/decks/${did_}/words/${wid_}`, { rating });
+      await api.post(
+        `/review/collections/${word.collection_id}/decks/${word.deck_id}/words/${word.id}`,
+        { rating }
+      );
     } catch (err) {
       showToast('Failed to submit review', 'error');
       document.querySelectorAll('.review-action-btn').forEach(b => { b.disabled = false; });
       return;
     }
 
-    // Track stats
     if (rating === 1) stats.again++;
     else if (rating === 3) stats.good++;
     else if (rating === 4) stats.easy++;
 
-    // Remove from front of queue
     queue.shift();
-
-    // Re-queue on Again
     if (rating === 1) {
       queue.push(word);
     } else {
       reviewed++;
     }
 
-    // Invalidate caches for this deck
-    delete state.wordsCache[`${cid_}/${did_}`];
-
+    delete state.wordsCache[`${word.collection_id}/${word.deck_id}`];
     showCard();
   }
 
+  // ── Session complete ────────────────────────────────────────────
   function renderSummary() {
     document.getElementById('progress').textContent = '';
     document.onkeydown = null;
 
-    const main = document.getElementById('review-main');
-    main.style.padding = '';
-    main.innerHTML = `
-      <div class="review-summary">
-        <div class="review-summary-icon">🎉</div>
-        <div class="review-summary-title">Session Complete</div>
-        <div class="review-summary-stats">
-          <div class="review-summary-stat">
-            <span class="review-summary-stat-value">${totalUnique}</span>
-            <span class="review-summary-stat-label">Reviewed</span>
-          </div>
-          <div class="review-summary-stat">
-            <span class="review-summary-stat-value" style="color:var(--danger)">${stats.again}</span>
-            <span class="review-summary-stat-label">Again</span>
-          </div>
-          <div class="review-summary-stat">
-            <span class="review-summary-stat-value" style="color:var(--accent)">${stats.good}</span>
-            <span class="review-summary-stat-label">Good</span>
-          </div>
-          <div class="review-summary-stat">
-            <span class="review-summary-stat-value" style="color:var(--success)">${stats.easy}</span>
-            <span class="review-summary-stat-label">Easy</span>
+    document.getElementById('review-main').innerHTML = `
+      <div style="height:100%;overflow-y:auto;display:flex;align-items:center;justify-content:center;padding:20px 16px;">
+        <div class="review-summary">
+          <div class="review-summary-icon">🎉</div>
+          <div class="review-summary-title">Session Complete</div>
+          <div class="review-summary-stats">
+            <div class="review-summary-stat">
+              <span class="review-summary-stat-value">${totalUnique}</span>
+              <span class="review-summary-stat-label">Reviewed</span>
+            </div>
+            <div class="review-summary-stat">
+              <span class="review-summary-stat-value" style="color:var(--danger)">${stats.again}</span>
+              <span class="review-summary-stat-label">Again</span>
+            </div>
+            <div class="review-summary-stat">
+              <span class="review-summary-stat-value" style="color:var(--accent)">${stats.good}</span>
+              <span class="review-summary-stat-label">Good</span>
+            </div>
+            <div class="review-summary-stat">
+              <span class="review-summary-stat-value" style="color:var(--success)">${stats.easy}</span>
+              <span class="review-summary-stat-label">Easy</span>
+            </div>
           </div>
         </div>
-        <button class="btn-primary" id="done-btn" style="margin-top:16px;">Done</button>
       </div>
     `;
 
+    document.getElementById('review-footer').className = 'app-footer';
+    document.getElementById('review-footer').innerHTML = `
+      <button class="btn-primary app-footer-btn" id="done-btn">Done</button>
+    `;
     document.getElementById('done-btn').onclick = () => navigate(backTarget);
   }
 
+  // ── No cards due ────────────────────────────────────────────────
   function renderEmpty(nextDue, isEarly) {
     document.getElementById('progress').textContent = '';
     document.onkeydown = null;
@@ -254,70 +302,81 @@ export default async function renderTest(app, cid, did) {
     if (nextDue) {
       const diff = new Date(nextDue) - Date.now();
       if (diff > 0) {
-        const hours = Math.floor(diff / 3600000);
-        const minutes = Math.ceil((diff % 3600000) / 60000);
-        const timeStr = hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`;
-        countdownHtml = `<div class="review-empty-sub">Next card due in ${timeStr}</div>`;
+        const h = Math.floor(diff / 3600000);
+        const m = Math.ceil((diff % 3600000) / 60000);
+        countdownHtml = `<div class="review-empty-sub">Next card due in ${h > 0 ? `${h}h ${m}m` : `${m}m`}</div>`;
       }
     }
 
-    const main = document.getElementById('review-main');
-    main.style.padding = '';
-    main.innerHTML = `
-      <div class="review-empty">
-        <div class="review-empty-icon">✅</div>
-        <div class="review-empty-title">No cards due</div>
-        ${countdownHtml}
-        ${!isEarly ? '<button class="btn-secondary" id="early-btn" style="margin-top:8px;">Review Early</button>' : ''}
-        <button class="btn-ghost" id="empty-back-btn">Go Back</button>
+    document.getElementById('review-main').innerHTML = `
+      <div style="height:100%;overflow-y:auto;display:flex;align-items:center;justify-content:center;padding:20px 16px;">
+        <div class="review-empty">
+          <div class="review-empty-icon">✅</div>
+          <div class="review-empty-title">No cards due</div>
+          ${countdownHtml}
+        </div>
       </div>
     `;
 
+    if (!isEarly) {
+      document.getElementById('review-footer').className = 'app-footer app-footer--multi';
+      document.getElementById('review-footer').innerHTML = `
+        <button class="btn-secondary app-footer-btn" id="early-btn">Review Early</button>
+        <button class="btn-secondary app-footer-btn" id="empty-back-btn">Go Back</button>
+      `;
+      document.getElementById('early-btn').onclick = loadEarly;
+    } else {
+      document.getElementById('review-footer').className = 'app-footer';
+      document.getElementById('review-footer').innerHTML = `
+        <button class="btn-secondary app-footer-btn" id="empty-back-btn">Go Back</button>
+      `;
+    }
     document.getElementById('empty-back-btn').onclick = () => navigate(backTarget);
+  }
 
+  async function loadEarly() {
     const earlyBtn = document.getElementById('early-btn');
-    if (earlyBtn) {
-      earlyBtn.onclick = async () => {
-        earlyBtn.disabled = true;
-        earlyBtn.innerHTML = '<span class="spinner-sm"></span>';
-        try {
-          let url = '/review/due?early=true';
-          url += `&collection_id=${encodeURIComponent(cid)}`;
-          if (did) {
-            url += `&deck_ids=${encodeURIComponent(did)}`;
-          } else if (decksParam) {
-            url += `&deck_ids=${encodeURIComponent(decksParam)}`;
-          }
-          const earlyResponse = await api.get(url);
-          const earlyWords = earlyResponse.words || [];
-          if (!earlyWords.length) {
-            showToast('No words available for early review', 'info');
-            earlyBtn.disabled = false;
-            earlyBtn.textContent = 'Review Early';
-            return;
-          }
-          // Restart session with early words
-          queue.length = 0;
-          queue.push(...earlyWords);
-          totalUnique = earlyWords.length;
-          reviewed = 0;
-          stats.again = 0;
-          stats.good = 0;
-          stats.easy = 0;
-          showCard();
-        } catch (err) {
-          showToast('Failed to load early review', 'error');
-          earlyBtn.disabled = false;
-          earlyBtn.textContent = 'Review Early';
-        }
-      };
+    if (earlyBtn) { earlyBtn.disabled = true; earlyBtn.innerHTML = '<span class="spinner-sm"></span>'; }
+    try {
+      let url = '/review/due?early=true';
+      url += `&collection_id=${encodeURIComponent(cid)}`;
+      if (did) url += `&deck_ids=${encodeURIComponent(did)}`;
+      else if (decksParam) url += `&deck_ids=${encodeURIComponent(decksParam)}`;
+
+      const earlyResponse = await api.get(url);
+      const earlyWords = earlyResponse.words || [];
+      if (!earlyWords.length) {
+        showToast('No words available for early review', 'info');
+        if (earlyBtn) { earlyBtn.disabled = false; earlyBtn.textContent = 'Review Early'; }
+        return;
+      }
+      queue.length = 0;
+      queue.push(...earlyWords);
+      totalUnique = earlyWords.length;
+      reviewed = 0;
+      stats.again = 0; stats.good = 0; stats.easy = 0;
+      showCard();
+    } catch {
+      showToast('Failed to load early review', 'error');
+      if (earlyBtn) { earlyBtn.disabled = false; earlyBtn.textContent = 'Review Early'; }
     }
   }
-}
 
-function formatInterval(days) {
-  if (!days || days < 1) return '<1d';
-  if (days < 30) return `${Math.round(days)}d`;
-  if (days < 365) return `${Math.round(days / 30)}mo`;
-  return `${(days / 365).toFixed(1)}y`;
+  // ── Error state ─────────────────────────────────────────────────
+  function renderError(msg) {
+    document.getElementById('review-footer').className = 'app-footer';
+    document.getElementById('review-footer').innerHTML = `
+      <button class="btn-secondary app-footer-btn" id="empty-back-btn">Go Back</button>
+    `;
+    document.getElementById('review-main').innerHTML = `
+      <div style="height:100%;display:flex;align-items:center;justify-content:center;padding:20px 16px;">
+        <div class="review-empty">
+          <div class="review-empty-icon">⚠️</div>
+          <div class="review-empty-title">Failed to load review</div>
+          <div class="review-empty-sub">${escapeHtml(msg)}</div>
+        </div>
+      </div>
+    `;
+    document.getElementById('empty-back-btn').onclick = () => navigate(backTarget);
+  }
 }
