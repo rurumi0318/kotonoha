@@ -2,95 +2,97 @@
 Converts raw Japanese text into a FuriganaSegment dict.
 
 Pipeline:
-  raw text → MeCab (fugashi + ipadic) tokenization
-           → per-token furigana alignment
+  raw text → SudachiPy (sudachidict_full) tokenization
+           → per-token furigana alignment (lookahead okurigana matching)
            → FuriganaSegment
 """
 
-import os
 import re
 
-import fugashi
-import ipadic
+import jaconv
+from sudachipy import dictionary, tokenizer
 
-_tagger: fugashi.GenericTagger | None = None
-_DEVNULL = "NUL" if os.name == "nt" else "/dev/null"
+_tokenizer_obj = None
 
-# Matches any CJK unified ideograph (kanji)
-_KANJI_RE = re.compile(r"[\u4e00-\u9fff\u3400-\u4dbf\uf900-\ufaff]")
+# Matches any CJK unified ideograph (kanji) plus iteration marks
+_KANJI_RE = re.compile(r"[\u4e00-\u9fff\u3400-\u4dbf\uf900-\ufaff\u3005-\u3007]")
+_HIRA_RE = re.compile(r"[ぁ-ん]")
 
 
-def _get_tagger() -> fugashi.GenericTagger:
-    global _tagger
-    if _tagger is None:
-        # Use forward slashes: MeCab's C++ arg parser treats backslashes as
-        # escape characters and strips them on Windows.
-        dicdir = ipadic.DICDIR.replace("\\", "/")
-        devnull = _DEVNULL.replace("\\", "/")
-        _tagger = fugashi.GenericTagger(f"-d {dicdir} -r {devnull}")
-    return _tagger
+def _get_tokenizer():
+    global _tokenizer_obj
+    if _tokenizer_obj is None:
+        _tokenizer_obj = dictionary.Dictionary(dict="full").create()
+    return _tokenizer_obj
 
 
 def _has_kanji(text: str) -> bool:
     return bool(_KANJI_RE.search(text))
 
 
-def _kata_to_hira(text: str) -> str:
-    """Convert katakana characters to hiragana."""
-    return "".join(
-        chr(ord(c) - 0x60) if "ァ" <= c <= "ン" else c
-        for c in text
-    )
-
-
-def _split_token_segments(surface: str, reading_hira: str) -> list[dict]:
+def _align_reading(surface: str, reading: str) -> list[dict]:
     """
-    Align a MeCab token (possibly mixed kanji/kana) to furigana segments.
+    Align a hiragana reading string to the surface characters of a token.
 
-    Example:
-      surface="重い", reading_hira="おもい"
-      → [{"t": "重", "r": "おも"}, {"t": "い"}]
+    Uses lookahead okurigana matching to correctly handle:
+      - repeated kana:         可愛い  → 可愛[かわい]  + い
+      - interleaved kana/kanji: 辿り着く → 辿[たど] + り + 着[つ] + く
+      - long okurigana:        教える  → 教[おし]  + える
     """
-    if not _has_kanji(surface):
-        return [{"t": surface}]
+    segments: list[dict] = []
+    s_idx = 0
+    r_idx = 0
 
-    # Split surface into alternating kanji / non-kanji runs.
-    # The capturing group keeps the kanji parts in the result list.
-    parts = re.split(r"([\u4e00-\u9fff\u3400-\u4dbf\uf900-\ufaff]+)", surface)
+    while s_idx < len(surface):
+        ch = surface[s_idx]
 
-    remaining = reading_hira
-    result: list[dict] = []
-    i = 0
+        if _KANJI_RE.match(ch):
+            # Collect the full contiguous kanji block
+            kanji_end = s_idx
+            while kanji_end < len(surface) and _KANJI_RE.match(surface[kanji_end]):
+                kanji_end += 1
+            kanji_block = surface[s_idx:kanji_end]
 
-    while i < len(parts):
-        part = parts[i]
+            # Collect the following okurigana (hiragana after the kanji block)
+            oku_end = kanji_end
+            while oku_end < len(surface) and _HIRA_RE.match(surface[oku_end]):
+                oku_end += 1
+            okurigana = surface[kanji_end:oku_end]
 
-        if not part:
-            i += 1
-            continue
-
-        if _has_kanji(part):
-            next_kana = parts[i + 1] if i + 1 < len(parts) else ""
-
-            if not next_kana:
-                # Kanji run at end of surface — consume all remaining reading
-                result.append({"t": part, "r": remaining})
-                remaining = ""
+            if not okurigana:
+                # No okurigana: consume all remaining reading
+                segments.append({"t": kanji_block, "r": reading[r_idx:]})
+                r_idx = len(reading)
             else:
-                idx = remaining.find(next_kana)
-                if idx == -1:
-                    # Alignment failed — fall back to one segment for the whole token
-                    return [{"t": surface, "r": reading_hira}]
-                result.append({"t": part, "r": remaining[:idx]})
-                remaining = remaining[idx:]
+                # Search for okurigana in remaining reading with lookahead.
+                # Iterate all occurrences and keep the LAST valid match, so
+                # that repeated kana (e.g. 可愛い reading かわいい) are handled
+                # correctly: we assign かわい to 可愛, not just かわ.
+                search_start = r_idx
+                match_pos = len(reading)  # fallback
+                while search_start < len(reading):
+                    idx = reading.find(okurigana, search_start)
+                    if idx == -1:
+                        break
+                    after_reading = reading[idx + len(okurigana):]
+                    after_surface = surface[oku_end:]
+                    if not after_surface or after_reading:
+                        match_pos = idx  # keep updating to prefer the last valid match
+                    search_start = idx + 1
+
+                segments.append({"t": kanji_block, "r": reading[r_idx:match_pos]})
+                r_idx = match_pos
+
+            s_idx = kanji_end
+
         else:
-            # Non-kanji run: no reading needed, consume same length from remaining
-            result.append({"t": part})
-            remaining = remaining[len(part):]
+            # Kana or other character — emit as-is, advance reading pointer if it matches
+            segments.append({"t": ch})
+            if _HIRA_RE.match(ch) and r_idx < len(reading) and reading[r_idx] == ch:
+                r_idx += 1
+            s_idx += 1
 
-        i += 1
-
-    return result
+    return segments
 
 
 def text_to_furigana_segment(surface: str, en: str | None = None) -> dict:
@@ -104,25 +106,18 @@ def text_to_furigana_segment(surface: str, en: str | None = None) -> dict:
     Returns:
         dict with keys: surface, segments, (en if provided)
     """
-    tagger = _get_tagger()
+    tok = _get_tokenizer()
     segments: list[dict] = []
 
-    for token in tagger(surface):
-        token_surface: str = token.surface
+    for token in tok.tokenize(surface, tokenizer.Tokenizer.SplitMode.C):
+        token_surface: str = token.surface()
+        reading_hira: str = jaconv.kata2hira(token.reading_form())
 
-        # ipadic feature index 7 = reading in katakana; '*' if unknown
-        try:
-            reading_kata = token.feature[7]
-            reading_hira = _kata_to_hira(reading_kata) if reading_kata != "*" else None
-        except (IndexError, TypeError):
-            reading_hira = None
-
-        if reading_hira:
-            token_segments = _split_token_segments(token_surface, reading_hira)
+        if not _has_kanji(token_surface) or token_surface == reading_hira:
+            # Pure kana / punctuation — no annotation needed
+            segments.append({"t": token_surface})
         else:
-            token_segments = [{"t": token_surface}]
-
-        segments.extend(token_segments)
+            segments.extend(_align_reading(token_surface, reading_hira))
 
     result: dict = {"surface": surface, "segments": segments}
     if en is not None:

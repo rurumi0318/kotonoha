@@ -2,8 +2,9 @@ wheel
 fastapi
 uvicorn[standard]
 firebase-admin
-fugashi
-ipadic
+sudachipy
+sudachidict_full
+jaconv
 jamdict
 fsrs
 google-genai
