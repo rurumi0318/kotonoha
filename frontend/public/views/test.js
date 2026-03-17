@@ -1,6 +1,6 @@
 import { api } from '../api.js';
 import { state } from '../state.js';
-import { renderFurigana, segmentToKana } from '../furigana.js';
+import { renderFurigana, renderFuriganaText, segmentToKana } from '../furigana.js';
 import { navigate, showToast, escapeHtml } from '../utils.js';
 import { audioService } from '../audio.js';
 
@@ -120,7 +120,7 @@ export default async function renderTest(app, cid, did) {
     document.getElementById('review-main').innerHTML = `
       <div class="word-panel word-panel--overview review-front-mode${getReviewHint() ? '' : ' review-hint-off'}">
         <div class="word-hero" id="review-hero">
-          <div class="word-surface-lg" lang="ja">${renderFurigana(word.word)}</div>
+          <div class="word-surface-lg" lang="ja">${escapeHtml(renderFuriganaText(word.word))}</div>
           ${word.kana_hint ? `<div class="word-kana-hint-lg" lang="ja">${escapeHtml(word.kana_hint)}</div>` : ''}
         </div>
         <div class="word-primary">
@@ -165,7 +165,7 @@ export default async function renderTest(app, cid, did) {
     document.getElementById('review-main').innerHTML = `
       <div class="word-panel word-panel--overview review-back-mode">
         <div class="word-hero" id="review-hero">
-          <div class="word-surface-lg" lang="ja">${renderFurigana(word.word)}</div>
+          <div class="word-surface-lg" lang="ja">${escapeHtml(renderFuriganaText(word.word))}</div>
           ${word.kana_hint ? `<div class="word-kana-hint-lg" lang="ja">${escapeHtml(word.kana_hint)}</div>` : ''}
         </div>
         <div class="word-primary" id="review-primary">

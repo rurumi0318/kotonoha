@@ -1,10 +1,10 @@
 import Sortable from 'https://cdn.jsdelivr.net/npm/sortablejs@1.15.3/+esm';
 import { api } from '../api.js';
 import { state } from '../state.js';
-import { renderFurigana, renderFuriganaText } from '../furigana.js';
+import { renderFuriganaText } from '../furigana.js';
 import {
   navigate, showToast, showModal, closeModal, escapeHtml,
-  masteryIcon, getFuriganaEnabled, setFuriganaEnabled,
+  masteryIcon,
 } from '../utils.js';
 
 export default async function renderWords(app, cid, did) {
@@ -20,9 +20,6 @@ export default async function renderWords(app, cid, did) {
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
         </button>
         <div class="header-title word-header-breadcrumb" id="deck-title"></div>
-        <button class="btn-icon" id="furigana-btn" title="Toggle furigana">
-          <span class="furigana-btn-icon">ふ</span>
-        </button>
       </header>
       <main class="app-main">
         <div class="page-header">
@@ -43,7 +40,6 @@ export default async function renderWords(app, cid, did) {
   `;
 
   document.getElementById('back-btn').onclick = () => navigate(`#/decks/${cid}`);
-  document.getElementById('furigana-btn').onclick = () => setFuriganaEnabled(!getFuriganaEnabled());
   document.getElementById('new-btn').onclick = () => navigate(`#/add-word/${cid}/${did}`);
   document.getElementById('review-btn').onclick = () => navigate(`#/test/${cid}/${did}`);
 
@@ -92,14 +88,13 @@ export default async function renderWords(app, cid, did) {
 
     list.innerHTML = ws.map(w => {
       const surface = renderFuriganaText(w.word);
-      const furigana = renderFurigana(w.word);
       return `
         <div class="word-item" data-id="${w.id}">
           <span class="card-drag" title="Drag to reorder">⠿</span>
           <div class="word-item-body" data-id="${w.id}">
             <div class="word-surface-with-hint">
               <span class="mastery-icon">${masteryIcon(w.fsrs_data)}</span>
-              <span class="word-surface-sm" lang="ja">${furigana}</span>
+              <span class="word-surface-sm" lang="ja">${escapeHtml(surface)}</span>
               ${w.kana_hint ? `<span class="word-kana-hint" lang="ja">${escapeHtml(w.kana_hint)}</span>` : ''}
             </div>
             <div class="word-item-right">

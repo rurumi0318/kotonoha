@@ -4,7 +4,6 @@ import { renderFurigana, renderFuriganaText, segmentToKana } from '../furigana.j
 import {
   navigate, showToast, escapeHtml,
   fsrsStateLabel, formatDate, formatDateFull, round2,
-  getFuriganaEnabled, setFuriganaEnabled,
 } from '../utils.js';
 import { audioService, getAutoPlay } from '../audio.js';
 
@@ -28,9 +27,6 @@ export default async function renderWord(app, cid, did, wid) {
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
           </button>
           <div class="word-header-nav" id="word-header-title"></div>
-          <button class="btn-icon" id="furigana-btn" title="Toggle furigana">
-            <span class="furigana-btn-icon">ふ</span>
-          </button>
           <button class="btn-icon" id="edit-btn" title="Edit word">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
@@ -50,7 +46,6 @@ export default async function renderWord(app, cid, did, wid) {
     `;
 
     document.getElementById('back-btn').onclick = () => navigate(`#/words/${cid}/${did}`);
-    document.getElementById('furigana-btn').onclick = () => setFuriganaEnabled(!getFuriganaEnabled());
     document.getElementById('details-btn').onclick = () => {
       const panels = document.getElementById('word-panels');
       const btn = document.getElementById('details-btn');
@@ -156,7 +151,7 @@ export default async function renderWord(app, cid, did, wid) {
         <!-- Overview panel -->
         <div class="word-panel word-panel--overview" id="word-panel-overview">
           <div class="word-hero">
-            <div class="word-surface-lg" lang="ja">${renderFurigana(w.word)}</div>
+            <div class="word-surface-lg" lang="ja">${escapeHtml(renderFuriganaText(w.word))}</div>
             ${w.kana_hint ? `<div class="word-kana-hint-lg" lang="ja">${escapeHtml(w.kana_hint)}</div>` : ''}
             <div class="word-state-dot word-state-dot--${dotClass}"></div>
           </div>

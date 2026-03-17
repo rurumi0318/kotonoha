@@ -13,11 +13,6 @@ import renderTest        from './views/test.js';
 import renderSettings    from './views/settings.js';
 import renderOnboarding  from './views/onboarding.js';
 
-// Apply furigana preference before first render to avoid flash
-if (localStorage.getItem('kotonoha_furigana') === '0') {
-  document.body.classList.add('furigana-off');
-}
-
 const app = document.getElementById('app');
 
 async function route() {

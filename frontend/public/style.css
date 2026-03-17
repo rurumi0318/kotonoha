@@ -1478,18 +1478,6 @@ body.has-footer .toast-container {
   min-width: 36px;
 }
 
-/* ── Furigana toggle ───────────────────────────────────────────── */
-body.furigana-off ruby rt { display: none; }
-
-.furigana-btn-icon {
-  font-family: var(--font-ja);
-  font-size: 0.95rem;
-  line-height: 1;
-}
-body.furigana-off .furigana-btn-icon {
-  text-decoration: line-through;
-  opacity: 0.45;
-}
 
 /* ── Word navigation bar ───────────────────────────────────────── */
 .word-nav-bar {
@@ -1548,8 +1536,6 @@ body.furigana-off .furigana-btn-icon {
 /* Review card front: hide kana-hint when toggled off */
 .review-front-mode.review-hint-off .word-kana-hint-lg { visibility: hidden; }
 
-/* Review card back: always show ruby regardless of global furigana setting */
-body.furigana-off .review-back-mode ruby rt { display: revert !important; }
 
 /* Hint toggle button */
 .review-hint-btn-icon {
