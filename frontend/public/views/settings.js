@@ -2,7 +2,7 @@ import { navigate, showToast } from '../utils.js';
 import { signOut } from '../auth.js';
 import { state } from '../state.js';
 import { getPreferences, updatePreferences } from '../api.js';
-import { getAudioEnabled, setAudioEnabled, getAutoPlay, setAutoPlay, VOICE_OPTIONS, getSelectedVoiceId, setSelectedVoiceId } from '../audio.js';
+import { getAudioEnabled, setAudioEnabled, getAutoPlay, setAutoPlay, VOICE_OPTIONS, getSelectedVoiceId, setSelectedVoiceId, audioService } from '../audio.js';
 
 const THEMES = [
   { id: 'midnight', name: 'Midnight', bg: '#0f1117', surface: '#1a1d27', accent: '#6c6fff', text: '#eef0ff' },
@@ -69,7 +69,7 @@ export default async function renderSettings(app) {
             </div>
             <div class="toggle-switch ${audioEnabled ? 'on' : ''}" id="audio-switch"></div>
           </div>
-          <div class="pause-toggle" id="autoplay-toggle" role="button" tabindex="0" aria-pressed="${autoPlay}" style="margin-top:4px">
+          <div class="pause-toggle" id="autoplay-toggle" role="button" tabindex="0" aria-pressed="${autoPlay}" style="margin-top:12px">
             <div>
               <div class="pause-toggle-label">Auto-play</div>
               <div class="pause-toggle-sub">Play word audio when opening a word</div>
@@ -83,6 +83,9 @@ export default async function renderSettings(app) {
                 <button class="lang-toggle-btn ${v.id === selectedVoiceId ? 'active' : ''}" data-voice="${v.id}">${v.label}</button>
               `).join('')}
             </div>
+          </div>
+          <div style="margin-top:16px">
+            <button class="btn-secondary" id="clear-audio-btn" style="width:100%">Clear Cached Audio</button>
           </div>
         </div>
         <div style="margin-top: 40px">
@@ -136,6 +139,15 @@ export default async function renderSettings(app) {
   }
   wireToggle('audio-toggle',    'audio-switch',    getAudioEnabled, setAudioEnabled);
   wireToggle('autoplay-toggle', 'autoplay-switch', getAutoPlay,     setAutoPlay);
+
+  document.getElementById('clear-audio-btn').onclick = async () => {
+    try {
+      await audioService.clearAllAudio();
+      showToast('Audio cache cleared');
+    } catch {
+      showToast('Failed to clear audio cache', 'error');
+    }
+  };
 
   document.querySelectorAll('[data-voice]').forEach(btn => {
     btn.onclick = () => {

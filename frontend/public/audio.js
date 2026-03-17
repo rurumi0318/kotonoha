@@ -183,6 +183,16 @@ class BackendTTSProvider {
     });
   }
 
+  async clearAllAudio() {
+    const db = await this._openDb();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction('clips', 'readwrite');
+      tx.objectStore('clips').clear();
+      tx.oncomplete = resolve;
+      tx.onerror    = () => reject(tx.error);
+    });
+  }
+
   async getAudioCacheStats() {
     const db = await this._openDb();
     return new Promise((resolve) => {
@@ -267,6 +277,10 @@ class AudioService {
 
   async clearCollectionAudio(collectionId) {
     await Promise.all(Object.values(this._providers).map(p => p.clearCollectionAudio(collectionId)));
+  }
+
+  async clearAllAudio() {
+    await Promise.all(Object.values(this._providers).map(p => p.clearAllAudio?.()));
   }
 
   async getAudioCacheStats() {
