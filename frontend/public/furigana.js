@@ -37,3 +37,17 @@ export function renderFuriganaText(segment) {
   if (typeof segment === 'string') return segment;
   return segment.surface || '';
 }
+
+/**
+ * Returns the full kana reading of a FuriganaSegment.
+ * Each token uses its reading (r) if present, otherwise its surface (t).
+ * Suitable for passing to TTS to avoid misread homographs (e.g. 明日→あした).
+ * @param {object} segment - { surface, segments: [{t, r?}] }
+ * @returns {string}
+ */
+export function segmentToKana(segment) {
+  if (!segment) return '';
+  if (typeof segment === 'string') return segment;
+  if (!segment.segments || segment.segments.length === 0) return segment.surface || '';
+  return segment.segments.map(tok => tok.r || tok.t || '').join('');
+}

@@ -1,6 +1,6 @@
 import { api } from '../api.js';
 import { state } from '../state.js';
-import { renderFurigana } from '../furigana.js';
+import { renderFurigana, segmentToKana } from '../furigana.js';
 import { navigate, showToast, escapeHtml } from '../utils.js';
 import { audioService } from '../audio.js';
 
@@ -139,7 +139,7 @@ export default async function renderTest(app, cid, did) {
     if (audioService.isAvailable()) {
       const heroEl = document.getElementById('review-hero');
       heroEl.addEventListener('click', () =>
-        audioService.speak(word.word.surface, cid, heroEl)
+        audioService.speak(word.kana_hint || segmentToKana(word.word), cid, heroEl)
       );
     }
 
@@ -195,7 +195,7 @@ export default async function renderTest(app, cid, did) {
     if (audioService.isAvailable()) {
       const heroEl = document.getElementById('review-hero');
       heroEl.addEventListener('click', () =>
-        audioService.speak(word.word.surface, cid, heroEl)
+        audioService.speak(word.kana_hint || segmentToKana(word.word), cid, heroEl)
       );
 
       if (firstSentence) {

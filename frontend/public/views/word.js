@@ -1,6 +1,6 @@
 import { api } from '../api.js';
 import { state } from '../state.js';
-import { renderFurigana, renderFuriganaText } from '../furigana.js';
+import { renderFurigana, renderFuriganaText, segmentToKana } from '../furigana.js';
 import {
   navigate, showToast, escapeHtml,
   fsrsStateLabel, formatDate, formatDateFull, round2,
@@ -106,7 +106,7 @@ export default async function renderWord(app, cid, did, wid) {
     if (e.key === 'ArrowRight' && idx < wordsList.length - 1) navigate(`#/word/${cid}/${did}/${wordsList[idx + 1].id}`);
     if (e.key === ' ' && word) {
       e.preventDefault();
-      audioService.speak(word.word.surface, cid, document.querySelector('.word-hero'));
+      audioService.speak(word.kana_hint || segmentToKana(word.word), cid, document.querySelector('.word-hero'));
     }
   }
   document.addEventListener('keydown', handleKey);
@@ -271,7 +271,7 @@ export default async function renderWord(app, cid, did, wid) {
     // ── Audio ──────────────────────────────────────────────────────
     if (audioService.isAvailable()) {
       const heroEl = document.querySelector('.word-hero');
-      heroEl?.addEventListener('click', () => audioService.speak(w.word.surface, cid, heroEl));
+      heroEl?.addEventListener('click', () => audioService.speak(w.kana_hint || segmentToKana(w.word), cid, heroEl));
 
       if (firstSentence) {
         const primaryEl = document.querySelector('.word-primary');
@@ -286,7 +286,7 @@ export default async function renderWord(app, cid, did, wid) {
         });
       });
 
-      if (getAutoPlay()) audioService.speak(w.word.surface, cid, heroEl);
+      if (getAutoPlay()) audioService.speak(w.kana_hint || segmentToKana(w.word), cid, heroEl);
     }
   }
 }
