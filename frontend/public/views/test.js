@@ -8,6 +8,14 @@ function getReviewHint() {
   return localStorage.getItem('kotonoha_review_hint') === '1';
 }
 
+function shuffle(arr) {
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
 export default async function renderTest(app, cid, did) {
   if (!cid) { navigate('#/collections'); return; }
 
@@ -91,7 +99,7 @@ export default async function renderTest(app, cid, did) {
   const isEarly = dueResponse.is_early;
 
   // Session state — declared before empty check so renderEmpty can access them
-  const queue = [...words];
+  const queue = shuffle([...words]);
   let totalUnique = words.length;
   let reviewed = 0;
   const stats = { again: 0, good: 0, easy: 0 };
@@ -351,7 +359,7 @@ export default async function renderTest(app, cid, did) {
         return;
       }
       queue.length = 0;
-      queue.push(...earlyWords);
+      queue.push(...shuffle(earlyWords));
       totalUnique = earlyWords.length;
       reviewed = 0;
       stats.again = 0; stats.good = 0; stats.easy = 0;
