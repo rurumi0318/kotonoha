@@ -21,7 +21,8 @@ backend/
 │   ├── words.py          # CRUD + reorder for words; furigana conversion on write
 │   ├── review.py         # FSRS review submission and due-word query
 │   ├── preferences.py    # User preferences
-│   └── vocab.py          # Dictionary lookup with example sentences
+│   ├── vocab.py          # Dictionary lookup with example sentences
+│   └── tts.py            # TTS audio endpoint (Cloud TTS + GCS cache)
 ├── services/
 │   ├── firebase.py       # Firebase app initialization
 │   ├── auth.py           # FastAPI dependency: Firebase JWT → user ID
@@ -29,7 +30,9 @@ backend/
 │   ├── fsrs_service.py   # FSRS scheduling wrapper (fsrs v6)
 │   ├── example_service.py  # SQLite example sentence lookup
 │   ├── vocab_service.py    # jamdict + example attachment + async translation
-│   └── translator.py       # Placeholder TranslatorService (translate_batch)
+│   ├── translator.py       # Placeholder TranslatorService (translate_batch)
+│   ├── tts_service.py      # Google Cloud TTS provider + cache key formula
+│   └── audio_cache.py      # GCS-backed MP3 cache
 ├── data/
 │   ├── jamdict.db        # Compiled JMDict database (gitignored — see below)
 │   └── examples.db       # Compiled example sentence database (gitignored — see below)
@@ -38,10 +41,12 @@ backend/
     ├── build_example_db.py       # One-time script to build examples.db from examples.utf
     ├── enrich_jlpt.py            # Enriches JLPT word lists with POS/definition from jamdict
     ├── generate_jlpt_examples.py # Generates example sentences for JLPT words via Gemini API
-    └── migrate_fsrs_due.py       # One-time migration: due_date→due, add counters, remove card_id
+    ├── migrate_fsrs_due.py       # One-time migration: due_date→due, add counters, remove card_id
+    └── pregenerate_tts.py        # Pre-warms GCS audio cache for all quickadd vocabulary
 ```
 
 See [VOCAB_LOOKUP.md](./VOCAB_LOOKUP.md) for the vocabulary lookup system, including how to build both databases.
+See [TTS.md](./TTS.md) for the TTS provider abstraction, two-layer cache design, and audio pre-generation.
 
 ## Authentication
 
@@ -134,15 +139,35 @@ Requires a composite Firestore index: `(user_id ASC, word.surface ASC)`.
 ## Furigana Conversion
 
 Raw Japanese text is converted to `FuriganaSegment` in `services/furigana.py` using:
-- **fugashi** — Python MeCab binding for morphological analysis
-- **ipadic** — MeCab dictionary (bundled, no system install needed)
+- **SudachiPy** (`sudachidict_full`) — morphological analyser and tokeniser
+- **jaconv** — katakana → hiragana conversion for readings
 
 The conversion pipeline:
-1. MeCab tokenizes the text into morphemes and provides katakana readings
-2. Per token: align the reading to the surface by splitting on kanji/kana boundaries
-3. Produce a list of `FuriganaToken` objects
+1. SudachiPy tokenises the text into morphemes (split mode C) and provides a katakana reading per token
+2. The reading is converted to hiragana with jaconv
+3. Pure-kana tokens are emitted as-is (no annotation needed)
+4. Kanji-containing tokens are passed to `_align_reading`, which splits the surface and reading into per-segment `{"t", "r"}` pairs
 
 This runs on every `POST`/`PATCH` for words and sentences — clients only send raw text.
+
+### Reading alignment (`_align_reading`)
+
+A naive split — "assign the whole reading to the kanji block, strip matching okurigana from the end" — fails in several common cases. The implementation uses a **lookahead okurigana search** instead:
+
+For each kanji block in the surface:
+1. Collect the **okurigana** (hiragana characters immediately following the block).
+2. Search for that okurigana string inside the remaining reading, iterating all occurrences and keeping the **last valid match**. "Valid" means either the surface has more characters after the okurigana, or the reading has more characters after it — preventing an early match from consuming too little of the reading.
+3. Assign everything in the reading up to that match position as the kanji block's reading.
+
+This correctly handles the three problem cases:
+
+| Case | Surface | Reading | Result |
+|---|---|---|---|
+| Repeated kana in okurigana | 可愛い | かわいい | 可愛[かわい] + い |
+| Interleaved kana/kanji | 辿り着く | たどりつく | 辿[たど] + り + 着[つ] + く |
+| Long okurigana | 教える | おしえる | 教[おし] + える |
+
+The "repeated kana" case (可愛い) is the critical one: the okurigana `い` appears twice in `かわいい`. A first-match strategy would assign only `かわ` to `可愛`; the last-match strategy correctly assigns `かわい`.
 
 ## FSRS Scheduling
 
@@ -215,6 +240,13 @@ Optional query params: `collection_id`, `deck_ids` (comma-separated, max 30), `e
 | GET | `/vocab/lookup?q={text}` | Dictionary lookup with senses and example sentences |
 
 See [VOCAB_LOOKUP.md](./VOCAB_LOOKUP.md) for full details.
+
+### TTS
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/tts/audio?text={text}&voice={voice}` | Synthesize Japanese text to MP3 (rate-limited: 60 req/min) |
+
+See [TTS.md](./TTS.md) for full details.
 
 ## JLPT Word Data Pipeline
 
