@@ -2,7 +2,7 @@ import { navigate, showToast } from '../utils.js';
 import { signOut } from '../auth.js';
 import { state } from '../state.js';
 import { getPreferences, updatePreferences } from '../api.js';
-import { getAudioEnabled, setAudioEnabled, getAutoPlay, setAutoPlay, VOICE_OPTIONS, getSelectedVoiceId, setSelectedVoiceId, audioService } from '../audio.js';
+import { getAudioEnabled, setAudioEnabled, getAutoPlay, setAutoPlay, getReviewAutoPlay, setReviewAutoPlay, VOICE_OPTIONS, getSelectedVoiceId, setSelectedVoiceId, audioService } from '../audio.js';
 
 const THEMES = [
   { id: 'midnight', name: 'Midnight', bg: '#0f1117', surface: '#1a1d27', accent: '#6c6fff', text: '#eef0ff' },
@@ -28,6 +28,7 @@ export default async function renderSettings(app) {
   const current = localStorage.getItem('theme') || 'midnight';
   const audioEnabled = getAudioEnabled();
   const autoPlay = getAutoPlay();
+  const reviewAutoPlay = getReviewAutoPlay();
   const selectedVoiceId = getSelectedVoiceId();
 
   const themeCards = THEMES.map(t => `
@@ -75,6 +76,13 @@ export default async function renderSettings(app) {
               <div class="pause-toggle-sub">Play word audio when opening a word</div>
             </div>
             <div class="toggle-switch ${autoPlay ? 'on' : ''}" id="autoplay-switch"></div>
+          </div>
+          <div class="pause-toggle" id="review-autoplay-toggle" role="button" tabindex="0" aria-pressed="${reviewAutoPlay}" style="margin-top:12px">
+            <div>
+              <div class="pause-toggle-label">Auto-play in Review</div>
+              <div class="pause-toggle-sub">Play word audio when revealing a card</div>
+            </div>
+            <div class="toggle-switch ${reviewAutoPlay ? 'on' : ''}" id="review-autoplay-switch"></div>
           </div>
           <div style="margin-top:16px">
             <div class="pause-toggle-label" style="margin-bottom:8px">Voice</div>
@@ -137,8 +145,9 @@ export default async function renderSettings(app) {
       if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); }
     });
   }
-  wireToggle('audio-toggle',    'audio-switch',    getAudioEnabled, setAudioEnabled);
-  wireToggle('autoplay-toggle', 'autoplay-switch', getAutoPlay,     setAutoPlay);
+  wireToggle('audio-toggle',        'audio-switch',        getAudioEnabled,   setAudioEnabled);
+  wireToggle('autoplay-toggle',     'autoplay-switch',     getAutoPlay,       setAutoPlay);
+  wireToggle('review-autoplay-toggle', 'review-autoplay-switch', getReviewAutoPlay, setReviewAutoPlay);
 
   document.getElementById('clear-audio-btn').onclick = async () => {
     try {

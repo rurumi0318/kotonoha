@@ -32,6 +32,12 @@ export function getAutoPlay() {
 export function setAutoPlay(val) {
   localStorage.setItem('audio-autoplay', String(val));
 }
+export function getReviewAutoPlay() {
+  return localStorage.getItem('audio-review-autoplay') !== 'false';
+}
+export function setReviewAutoPlay(val) {
+  localStorage.setItem('audio-review-autoplay', String(val));
+}
 
 // ── Provider interface ─────────────────────────────────────────────
 // All providers implement:

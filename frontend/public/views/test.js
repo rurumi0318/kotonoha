@@ -2,7 +2,7 @@ import { api } from '../api.js';
 import { state } from '../state.js';
 import { renderFurigana, renderFuriganaText, segmentToKana } from '../furigana.js';
 import { navigate, showToast, escapeHtml } from '../utils.js';
-import { audioService } from '../audio.js';
+import { audioService, getReviewAutoPlay } from '../audio.js';
 
 function getReviewHint() {
   return localStorage.getItem('kotonoha_review_hint') === '1';
@@ -205,12 +205,16 @@ export default async function renderTest(app, cid, did) {
       <button class="review-action-btn review-btn-easy" data-rating="4">Easy</button>
     `;
 
-    // Audio: hero taps play word
+    // Audio: hero taps play word; auto-play on reveal if enabled
     if (audioService.isAvailable()) {
       const heroEl = document.getElementById('review-hero');
       heroEl.addEventListener('click', () =>
         audioService.speak(word.kana_hint || segmentToKana(word.word), cid, heroEl)
       );
+
+      if (getReviewAutoPlay()) {
+        audioService.speak(word.kana_hint || segmentToKana(word.word), cid, heroEl);
+      }
 
       if (firstSentence) {
         const primaryEl = document.getElementById('review-primary');
