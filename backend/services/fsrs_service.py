@@ -10,6 +10,7 @@ _scheduler = Scheduler()
 
 _RATING_MAP = {
     1: Rating.Again,
+    2: Rating.Hard,
     3: Rating.Good,
     4: Rating.Easy,
 }

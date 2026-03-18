@@ -1573,12 +1573,21 @@ body.has-footer .toast-container {
   border-radius: var(--radius-sm);
   font-size: 1rem;
   font-weight: 600;
-  transition: opacity 0.15s;
+  transition: opacity 0.15s, transform 0.15s, box-shadow 0.15s;
 }
 .review-action-btn:hover { opacity: 0.85; }
 .review-action-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.review-action-btn--selected {
+  transform: scale(1.08);
+  box-shadow: 0 0 0 3px rgba(255,255,255,0.5);
+  opacity: 1 !important;
+}
+.review-action-btn--faded {
+  opacity: 0.25 !important;
+}
 
-.review-btn-again { background: var(--danger);  color: #fff; }
+.review-btn-again { background: var(--danger);  color: #fff; flex: 0 0 auto; width: 52px; padding-left: 0; padding-right: 0; }
+.review-btn-hard  { background: var(--warning); color: #1a1a2e; }
 .review-btn-good  { background: var(--accent);  color: #fff; }
 .review-btn-easy  { background: var(--success); color: #fff; }
 

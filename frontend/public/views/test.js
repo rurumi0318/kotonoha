@@ -102,7 +102,7 @@ export default async function renderTest(app, cid, did) {
   const queue = shuffle([...words]);
   let totalUnique = words.length;
   let reviewed = 0;
-  const stats = { again: 0, good: 0, easy: 0 };
+  const stats = { again: 0, hard: 0, good: 0, easy: 0 };
 
   if (!words.length) {
     renderEmpty(nextDue, isEarly);
@@ -191,12 +191,18 @@ export default async function renderTest(app, cid, did) {
       </div>
     `;
 
-    // Footer: Again / Good / Easy
+    // Footer: Again / Hard / Good / Easy
     document.getElementById('review-footer').className = 'app-footer app-footer--multi';
     document.getElementById('review-footer').innerHTML = `
-      <button class="review-action-btn review-btn-again" data-rating="1">Again</button>
-      <button class="review-action-btn review-btn-good"  data-rating="3">Good</button>
-      <button class="review-action-btn review-btn-easy"  data-rating="4">Easy</button>
+      <button class="review-action-btn review-btn-again" data-rating="1" title="Again" aria-label="Again">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="1 4 1 10 7 10"/><polyline points="23 20 23 14 17 14"/>
+          <path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15"/>
+        </svg>
+      </button>
+      <button class="review-action-btn review-btn-hard" data-rating="2">Hard</button>
+      <button class="review-action-btn review-btn-good" data-rating="3">Good</button>
+      <button class="review-action-btn review-btn-easy" data-rating="4">Easy</button>
     `;
 
     // Audio: hero taps play word
@@ -222,10 +228,11 @@ export default async function renderTest(app, cid, did) {
       btn.onclick = () => submitRating(word, parseInt(btn.dataset.rating));
     });
 
-    // Keyboard shortcuts
+    // Keyboard shortcuts: 1=Again, 2=Hard, 3=Good, 4=Easy
     document.onkeydown = (e) => {
       if (e.key === '1') submitRating(word, 1);
-      else if (e.key === '2' || e.key === '3') submitRating(word, 3);
+      else if (e.key === '2') submitRating(word, 2);
+      else if (e.key === '3') submitRating(word, 3);
       else if (e.key === '4') submitRating(word, 4);
     };
   }
@@ -233,21 +240,40 @@ export default async function renderTest(app, cid, did) {
   // ── Submit rating ───────────────────────────────────────────────
   async function submitRating(word, rating) {
     document.onkeydown = null;
-    document.querySelectorAll('.review-action-btn').forEach(b => { b.disabled = true; });
     audioService.cancel();
 
+    // Visual feedback: highlight pressed button, fade the others
+    const allBtns = [...document.querySelectorAll('.review-action-btn')];
+    allBtns.forEach(b => {
+      b.disabled = true;
+      if (parseInt(b.dataset.rating) === rating) {
+        b.classList.add('review-action-btn--selected');
+      } else {
+        b.classList.add('review-action-btn--faded');
+      }
+    });
+
+    const FEEDBACK_DELAY = 400; // ms
+
     try {
-      await api.post(
-        `/review/collections/${word.collection_id}/decks/${word.deck_id}/words/${word.id}`,
-        { rating }
-      );
+      await Promise.all([
+        api.post(
+          `/review/collections/${word.collection_id}/decks/${word.deck_id}/words/${word.id}`,
+          { rating }
+        ),
+        new Promise(resolve => setTimeout(resolve, FEEDBACK_DELAY)),
+      ]);
     } catch (err) {
       showToast('Failed to submit review', 'error');
-      document.querySelectorAll('.review-action-btn').forEach(b => { b.disabled = false; });
+      allBtns.forEach(b => {
+        b.disabled = false;
+        b.classList.remove('review-action-btn--selected', 'review-action-btn--faded');
+      });
       return;
     }
 
     if (rating === 1) stats.again++;
+    else if (rating === 2) stats.hard++;
     else if (rating === 3) stats.good++;
     else if (rating === 4) stats.easy++;
 
@@ -280,6 +306,10 @@ export default async function renderTest(app, cid, did) {
             <div class="review-summary-stat">
               <span class="review-summary-stat-value" style="color:var(--danger)">${stats.again}</span>
               <span class="review-summary-stat-label">Again</span>
+            </div>
+            <div class="review-summary-stat">
+              <span class="review-summary-stat-value" style="color:var(--warning)">${stats.hard}</span>
+              <span class="review-summary-stat-label">Hard</span>
             </div>
             <div class="review-summary-stat">
               <span class="review-summary-stat-value" style="color:var(--accent)">${stats.good}</span>

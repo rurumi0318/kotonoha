@@ -70,7 +70,7 @@ class OrderRequest(BaseModel):
 # ---------- Review models ----------
 
 class ReviewRequest(BaseModel):
-    rating: Literal[1, 3, 4]  # Again=1, Good=3, Easy=4
+    rating: Literal[1, 2, 3, 4]  # Again=1, Hard=2, Good=3, Easy=4
 
 
 class ReviewWordItem(BaseModel):
