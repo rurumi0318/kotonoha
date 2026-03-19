@@ -147,7 +147,8 @@ export default async function renderTest(app, cid, did) {
     if (audioService.isAvailable()) {
       const heroEl = document.getElementById('review-hero');
       heroEl.addEventListener('click', () =>
-        audioService.speak(word.kana_hint || segmentToKana(word.word), cid, heroEl)
+        // audioService.speak(word.kana_hint || segmentToKana(word.word), cid, heroEl)
+        audioService.speak(word.word.surface, cid, heroEl)
       );
     }
 
@@ -209,11 +210,13 @@ export default async function renderTest(app, cid, did) {
     if (audioService.isAvailable()) {
       const heroEl = document.getElementById('review-hero');
       heroEl.addEventListener('click', () =>
-        audioService.speak(word.kana_hint || segmentToKana(word.word), cid, heroEl)
+        // audioService.speak(word.kana_hint || segmentToKana(word.word), cid, heroEl)
+        audioService.speak(word.word.surface, cid, heroEl)
       );
 
       if (getReviewAutoPlay()) {
-        audioService.speak(word.kana_hint || segmentToKana(word.word), cid, heroEl);
+        // audioService.speak(word.kana_hint || segmentToKana(word.word), cid, heroEl);
+        audioService.speak(word.word.surface, cid, heroEl);
       }
 
       if (firstSentence) {
