@@ -394,48 +394,111 @@ export default async function renderDecks(app, cid) {
       return;
     }
 
-    const selected = new Set(decks.map(d => d.id));
+    const MAX = 30;
+    const selected = new Set();
+    let anchorIndex = null;   // desktop shift-click anchor
+    let rangeAnchor = null;   // mobile long-press anchor
+    let longPressTimer = null;
+    let longPressFired = false;
 
-    function render() {
-      showModal(`
-        <div class="modal-header">
-          <div class="modal-title">Select Decks to Review</div>
-        </div>
-        <div class="modal-body">
-          ${decks.map(d => `
-            <label class="select-deck-row">
-              <input type="checkbox" class="select-deck-check" data-id="${d.id}"
-                ${selected.has(d.id) ? 'checked' : ''}>
-              <span class="select-deck-name">${escapeHtml(d.name)}</span>
-            </label>
-          `).join('')}
-        </div>
-        <div class="modal-footer">
-          <button class="btn-secondary" id="modal-cancel">Cancel</button>
-          <button class="btn-primary" id="modal-confirm" ${selected.size === 0 ? 'disabled' : ''}>Review (${selected.size})</button>
-        </div>
-      `);
+    function updateUI() {
+      const counter = document.getElementById('select-deck-counter');
+      if (counter) counter.textContent = `${selected.size} / ${MAX}`;
 
-      document.getElementById('modal-cancel').onclick = closeModal;
-      document.getElementById('modal-confirm').onclick = () => {
-        if (!selected.size) return;
-        closeModal();
-        const deckIds = [...selected].join(',');
-        navigate(`#/test/${cid}?decks=${deckIds}`);
-      };
+      const btn = document.getElementById('modal-confirm');
+      if (btn) {
+        btn.textContent = `Review (${selected.size})`;
+        btn.disabled = selected.size === 0;
+      }
 
-      document.querySelectorAll('.select-deck-check').forEach(cb => {
-        cb.onchange = () => {
-          if (cb.checked) selected.add(cb.dataset.id);
-          else selected.delete(cb.dataset.id);
-          const btn = document.getElementById('modal-confirm');
-          btn.textContent = `Review (${selected.size})`;
-          btn.disabled = selected.size === 0;
-        };
+      decks.forEach((d, i) => {
+        const row = document.querySelector(`.select-deck-row[data-index="${i}"]`);
+        if (!row) return;
+        const isSelected = selected.has(d.id);
+        const isDisabled = !isSelected && selected.size >= MAX;
+        row.classList.toggle('select-deck-row--selected', isSelected);
+        row.classList.toggle('select-deck-row--disabled', isDisabled);
+        row.classList.toggle('select-deck-row--anchor', rangeAnchor === i);
+        const cb = row.querySelector('.select-deck-check');
+        if (cb) { cb.checked = isSelected; cb.disabled = isDisabled; }
       });
     }
 
-    render();
+    function applyRange(from, to) {
+      const lo = Math.min(from, to);
+      const hi = Math.max(from, to);
+      selected.clear();
+      for (let i = lo; i <= hi && selected.size < MAX; i++) {
+        selected.add(decks[i].id);
+      }
+    }
+
+    function handleRowClick(e, index) {
+      if (longPressFired) { longPressFired = false; return; }
+
+      if (rangeAnchor !== null) {
+        applyRange(rangeAnchor, index);
+        rangeAnchor = null;
+        anchorIndex = index;
+      } else if (e.shiftKey && anchorIndex !== null) {
+        applyRange(anchorIndex, index);
+        anchorIndex = index;
+      } else {
+        const id = decks[index].id;
+        if (selected.has(id)) selected.delete(id);
+        else if (selected.size < MAX) selected.add(id);
+        anchorIndex = index;
+      }
+      updateUI();
+    }
+
+    showModal(`
+      <div class="modal-header">
+        <div class="modal-title">Select Decks</div>
+        <div class="select-deck-counter" id="select-deck-counter">0 / ${MAX}</div>
+      </div>
+      <div class="modal-body">
+        ${decks.map((d, i) => `
+          <div class="select-deck-row" data-index="${i}" data-id="${d.id}">
+            <input type="checkbox" class="select-deck-check" tabindex="-1">
+            <span class="select-deck-name">${escapeHtml(d.name)}</span>
+          </div>
+        `).join('')}
+      </div>
+      <div class="modal-footer">
+        <button class="btn-secondary" id="modal-cancel">Cancel</button>
+        <button class="btn-primary" id="modal-confirm" disabled>Review (0)</button>
+      </div>
+    `);
+
+    document.getElementById('modal-cancel').onclick = closeModal;
+    document.getElementById('modal-confirm').onclick = () => {
+      if (!selected.size) return;
+      closeModal();
+      navigate(`#/test/${cid}?decks=${[...selected].join(',')}`);
+    };
+
+    document.querySelectorAll('.select-deck-row').forEach(row => {
+      const index = parseInt(row.dataset.index);
+
+      row.addEventListener('click', (e) => handleRowClick(e, index));
+
+      row.addEventListener('touchstart', () => {
+        longPressFired = false;
+        longPressTimer = setTimeout(() => {
+          longPressFired = true;
+          rangeAnchor = index;
+          selected.clear();
+          selected.add(decks[index].id);
+          anchorIndex = null;
+          if (navigator.vibrate) navigator.vibrate(40);
+          updateUI();
+        }, 500);
+      }, { passive: true });
+
+      row.addEventListener('touchend',  () => clearTimeout(longPressTimer));
+      row.addEventListener('touchmove', () => clearTimeout(longPressTimer));
+    });
   }
 
   function openDeleteModal(deck) {

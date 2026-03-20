@@ -1499,6 +1499,12 @@ body.has-footer .toast-container {
 }
 
 /* ── Select deck modal ─────────────────────────────────────────── */
+.select-deck-counter {
+  font-size: 0.85rem;
+  color: var(--text-2);
+  font-variant-numeric: tabular-nums;
+  margin-left: auto;
+}
 .select-deck-row {
   display: flex;
   align-items: center;
@@ -1506,16 +1512,32 @@ body.has-footer .toast-container {
   padding: 12px 4px;
   cursor: pointer;
   border-bottom: 1px solid var(--border);
-  transition: background 0.1s;
+  border-left: 3px solid transparent;
+  transition: background 0.1s, border-color 0.1s;
+  user-select: none;
+  -webkit-user-select: none;
 }
 .select-deck-row:last-child { border-bottom: none; }
-.select-deck-row:hover { background: var(--surface-el); }
+.select-deck-row:hover:not(.select-deck-row--disabled) { background: var(--surface-el); }
+.select-deck-row--selected {
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  border-left-color: var(--accent);
+}
+.select-deck-row--anchor {
+  border-left-color: var(--accent);
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+.select-deck-row--disabled {
+  opacity: 0.4;
+  cursor: default;
+}
 .select-deck-check {
   accent-color: var(--accent);
   width: 18px;
   height: 18px;
   flex-shrink: 0;
-  cursor: pointer;
+  pointer-events: none;
 }
 .select-deck-name {
   font-size: 1rem;
