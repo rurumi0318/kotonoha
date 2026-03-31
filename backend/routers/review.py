@@ -1,3 +1,4 @@
+import random
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -67,9 +68,12 @@ async def get_due_words(
     if not early:
         query = query.where("fsrs_data.due", "<=", now)
 
-    query = query.order_by("fsrs_data.due").limit(batch_size)
+    pool_size = int(batch_size * 1.5)
+    query = query.order_by("fsrs_data.due").limit(pool_size)
 
     docs = list(query.stream())
+    random.shuffle(docs)
+    docs = docs[:batch_size]
 
     # Look up collection/deck names with in-request cache
     name_cache: dict[str, str] = {}

@@ -183,7 +183,8 @@ GET /review/due  →  collection_group("words")
                       .where("is_paused", "==", False)
                       .where("fsrs_data.due", "<=", now)
                       .order_by("fsrs_data.due")
-                      .limit(daily_review_limit)
+                      .limit(daily_review_limit * 1.5)   # over-fetch pool
+                    → shuffle(pool)[:daily_review_limit]  # random subset
 ```
 
 Optional query params: `collection_id`, `deck_ids` (comma-separated, max 30), `early` (bool).
